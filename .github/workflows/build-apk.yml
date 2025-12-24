@@ -31,8 +31,6 @@ jobs:
         run: |
           echo "Checking dist directory:"
           ls -la dist/
-          echo "Files in dist:"
-          find dist -type f
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -43,13 +41,6 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Check Android SDK
-        run: |
-          echo "ANDROID_HOME: $ANDROID_HOME"
-          echo "Android SDK location:"
-          which sdkmanager || echo "sdkmanager not found in PATH"
-          ls -la $ANDROID_SDK_ROOT || echo "ANDROID_SDK_ROOT not set"
-
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses || true
 
@@ -58,7 +49,27 @@ jobs:
           sdkmanager --install "platform-tools"
           sdkmanager --install "platforms;android-34"
           sdkmanager --install "build-tools;34.0.0"
-          sdkmanager --list | grep -E "(platform|build-tools)" | head -20
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Apply custom build configuration
+        run: |
+          echo "Copying custom build.gradle and keystore..."
+          # The build.gradle and keystore are in git, restore them
+          git checkout android/app/build.gradle android/app/release.keystore || true
+
+          echo "Checking if files exist:"
+          ls -la android/app/build.gradle
+          ls -la android/app/release.keystore
+
+      - name: Apply SDK version
+        run: |
+          # Copy variables.gradle from repo
+          git checkout android/variables.gradle || true
+
+          echo "Checking variables.gradle:"
+          cat android/variables.gradle
 
       - name: Sync Capacitor
         run: npx cap sync android
@@ -67,42 +78,26 @@ jobs:
         run: |
           echo "Android project structure:"
           ls -la android/
-          echo "Android app directory:"
-          ls -la android/app/
-          echo "Checking for build.gradle:"
-          cat android/app/build.gradle | head -40
+          echo "Gradlew exists:"
+          ls -la android/gradlew
 
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
-      - name: Check Gradle version
-        working-directory: android
-        run: ./gradlew --version
-
       - name: Build Debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --stacktrace --warning-mode all
-
-      - name: List build outputs (debug)
-        if: always()
-        run: |
-          echo "Listing all build outputs:"
-          find android -name "*.apk" || echo "No APK files found"
-          echo "Build directory contents:"
-          ls -R android/app/build/ || echo "Build directory not found"
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload Debug APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: mars-miner-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
 
       - name: Build Release APK
         if: success()
         working-directory: android
-        run: ./gradlew assembleRelease --stacktrace --warning-mode all
+        run: ./gradlew assembleRelease --stacktrace
 
       - name: Upload Signed Release APK
         if: success()
@@ -110,7 +105,6 @@ jobs:
         with:
           name: mars-miner-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: error
 
       - name: Build summary
         if: always()
@@ -118,25 +112,14 @@ jobs:
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-            echo "✅ Debug APK built successfully" >> $GITHUB_STEP_SUMMARY
-            ls -lh android/app/build/outputs/apk/debug/app-debug.apk >> $GITHUB_STEP_SUMMARY
+            SIZE=$(ls -lh android/app/build/outputs/apk/debug/app-debug.apk | awk '{print $5}')
+            echo "✅ Debug APK: $SIZE" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Debug APK build failed" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
-            echo "✅ Release APK built successfully" >> $GITHUB_STEP_SUMMARY
-            ls -lh android/app/build/outputs/apk/release/app-release.apk >> $GITHUB_STEP_SUMMARY
+            SIZE=$(ls -lh android/app/build/outputs/apk/release/app-release.apk | awk '{print $5}')
+            echo "✅ Release APK: $SIZE (signed)" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Release APK not built" >> $GITHUB_STEP_SUMMARY
           fi
-
-      - name: Upload build logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: |
-            android/app/build/outputs/logs/
-            android/build/outputs/logs/
-          if-no-files-found: ignore
