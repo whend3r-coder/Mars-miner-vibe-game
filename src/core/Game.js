@@ -5,6 +5,9 @@ import { TouchControls } from './TouchControls.js';
 import { World } from '../world/World.js';
 import { Player } from '../entities/Player.js';
 import { DrillingSystem } from '../systems/Drilling.js';
+import { Economy } from '../systems/Economy.js';
+import { SurfaceBase } from '../systems/SurfaceBase.js';
+import { Hazards } from '../systems/Hazards.js';
 
 export class Game {
   constructor(canvas) {
@@ -18,7 +21,10 @@ export class Game {
     // Game state
     this.world = new World();
     this.player = new Player(CONFIG.WORLD_WIDTH / 2, 2); // Start at center, near surface
-    this.drillingSystem = new DrillingSystem(this.player, this.world);
+    this.hazards = new Hazards(this.world, this.player);
+    this.drillingSystem = new DrillingSystem(this.player, this.world, this.hazards);
+    this.economy = new Economy(this.player);
+    this.surfaceBase = new SurfaceBase(this.player, this.economy);
 
     // Game loop
     this.running = false;
@@ -60,11 +66,20 @@ export class Game {
   }
 
   update(dt) {
-    // Update player
-    this.player.update(dt, this.input, this.world);
+    // Update surface base (handles menu interactions)
+    this.surfaceBase.update(this.input);
 
-    // Update drilling system
-    this.drillingSystem.update(dt, this.input);
+    // Only update player and drilling when menu is not open
+    if (!this.surfaceBase.showMenu) {
+      // Update player
+      this.player.update(dt, this.input, this.world);
+
+      // Update drilling system
+      this.drillingSystem.update(dt, this.input);
+
+      // Update hazards (lava damage, etc)
+      this.hazards.update(dt);
+    }
 
     // Update input state (clear pressed/released keys)
     this.input.update();
@@ -85,8 +100,14 @@ export class Game {
     // Update camera
     this.renderer.updateCamera(this.player);
 
-    // Render world, player, HUD, and touch controls
-    this.renderer.render(this.world, this.player, this.drillingSystem, this.touchControls);
+    // Render world, player, HUD, touch controls, and surface base menu
+    this.renderer.render(
+      this.world,
+      this.player,
+      this.drillingSystem,
+      this.touchControls,
+      this.surfaceBase
+    );
   }
 
   // Save/Load methods (for future)

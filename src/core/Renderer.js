@@ -51,7 +51,7 @@ export class Renderer {
     this.cameraY += (this.targetCameraY - this.cameraY) * CONFIG.CAMERA_LERP;
   }
 
-  render(world, player, drillingSystem, touchControls) {
+  render(world, player, drillingSystem, touchControls, surfaceBase) {
     // Clear screen
     this.ctx.fillStyle = '#0a0a0a';
     this.ctx.fillRect(0, 0, CONFIG.INTERNAL_WIDTH, CONFIG.INTERNAL_HEIGHT);
@@ -128,6 +128,11 @@ export class Renderer {
     if (touchControls) {
       touchControls.render(this.ctx);
     }
+
+    // Render surface base menu
+    if (surfaceBase) {
+      this.renderSurfaceMenu(surfaceBase);
+    }
   }
 
   renderHUD(player) {
@@ -171,5 +176,139 @@ export class Renderer {
     this.ctx.fillRect(CONFIG.INTERNAL_WIDTH - 120, padding, 110, 30);
     this.ctx.fillStyle = '#FFD700';
     this.ctx.fillText(`Depth: ${Math.floor(player.y)}m`, CONFIG.INTERNAL_WIDTH - 115, padding + 20);
+  }
+
+  renderSurfaceMenu(surfaceBase) {
+    const menuState = surfaceBase.getMenuState();
+
+    // Show "Press E to open base" hint when at surface
+    if (!menuState && surfaceBase.isAtSurface()) {
+      this.ctx.save();
+      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      this.ctx.fillRect(CONFIG.INTERNAL_WIDTH / 2 - 100, CONFIG.INTERNAL_HEIGHT - 60, 200, 50);
+      this.ctx.fillStyle = '#FFD700';
+      this.ctx.font = '14px monospace';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('SURFACE BASE', CONFIG.INTERNAL_WIDTH / 2, CONFIG.INTERNAL_HEIGHT - 35);
+      this.ctx.font = '12px monospace';
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.fillText('Press E or SPACE to enter', CONFIG.INTERNAL_WIDTH / 2, CONFIG.INTERNAL_HEIGHT - 20);
+      this.ctx.restore();
+      return;
+    }
+
+    if (!menuState) return;
+
+    // Draw overlay
+    this.ctx.save();
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    this.ctx.fillRect(0, 0, CONFIG.INTERNAL_WIDTH, CONFIG.INTERNAL_HEIGHT);
+
+    const centerX = CONFIG.INTERNAL_WIDTH / 2;
+    const centerY = CONFIG.INTERNAL_HEIGHT / 2;
+
+    if (menuState.type === 'main') {
+      this.renderMainMenu(menuState, centerX, centerY);
+    } else if (menuState.type === 'upgrade') {
+      this.renderUpgradeMenu(menuState, centerX, centerY);
+    }
+
+    this.ctx.restore();
+  }
+
+  renderMainMenu(menuState, centerX, centerY) {
+    const { player, economy } = menuState;
+
+    // Title
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.font = 'bold 20px monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('SURFACE BASE', centerX, centerY - 120);
+
+    // Player stats
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.font = '14px monospace';
+    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 80);
+
+    // Menu options
+    const options = [
+      { key: '1', text: `Refuel ($${economy.refuelCost})`, color: player.fuel < player.maxFuel ? '#00FF00' : '#666666' },
+      { key: '2', text: `Sell Cargo ($${player.cargoValue})`, color: player.cargo.length > 0 ? '#FFD700' : '#666666' },
+      { key: '3', text: `Repair Hull ($${economy.repairCost})`, color: player.hull < player.maxHull ? '#00FFFF' : '#666666' },
+      { key: '4', text: 'Upgrades', color: '#FF00FF' },
+    ];
+
+    this.ctx.textAlign = 'left';
+    this.ctx.font = '16px monospace';
+
+    options.forEach((option, index) => {
+      const y = centerY - 30 + index * 30;
+      this.ctx.fillStyle = option.color;
+      this.ctx.fillText(`[${option.key}] ${option.text}`, centerX - 150, y);
+    });
+
+    // Instructions
+    this.ctx.fillStyle = '#888888';
+    this.ctx.font = '12px monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('Press ESC to close', centerX, centerY + 100);
+  }
+
+  renderUpgradeMenu(menuState, centerX, centerY) {
+    const { player, economy } = menuState;
+
+    // Title
+    this.ctx.fillStyle = '#FF00FF';
+    this.ctx.font = 'bold 18px monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('UPGRADES', centerX, centerY - 120);
+
+    // Money
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.font = '14px monospace';
+    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 95);
+
+    // Upgrade options
+    const upgrades = economy.upgrades;
+    const upgradeKeys = [
+      { key: '1', type: 'drillSpeed', name: 'Drill Speed' },
+      { key: '2', type: 'drillPower', name: 'Drill Power' },
+      { key: '3', type: 'fuelTank', name: 'Fuel Tank' },
+      { key: '4', type: 'cargoBay', name: 'Cargo Bay' },
+      { key: '5', type: 'hull', name: 'Hull Armor' },
+    ];
+
+    this.ctx.textAlign = 'left';
+    this.ctx.font = '13px monospace';
+
+    upgradeKeys.forEach((item, index) => {
+      const upgrade = upgrades.find(u => u.type === item.type);
+      const y = centerY - 60 + index * 35;
+
+      if (upgrade.isMaxed) {
+        this.ctx.fillStyle = '#666666';
+        this.ctx.fillText(`[${item.key}] ${item.name} - MAX LEVEL`, centerX - 180, y);
+      } else {
+        const canAfford = player.money >= upgrade.nextCost;
+        this.ctx.fillStyle = canAfford ? '#00FF00' : '#FF6666';
+        this.ctx.fillText(
+          `[${item.key}] ${item.name} Lv${upgrade.currentLevel + 1} - $${upgrade.nextCost}`,
+          centerX - 180,
+          y
+        );
+
+        // Description
+        this.ctx.fillStyle = '#AAAAAA';
+        this.ctx.font = '11px monospace';
+        this.ctx.fillText(upgrade.description, centerX - 175, y + 13);
+        this.ctx.font = '13px monospace';
+      }
+    });
+
+    // Instructions
+    this.ctx.fillStyle = '#888888';
+    this.ctx.font = '12px monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('Press B or ESC to go back', centerX, centerY + 100);
   }
 }

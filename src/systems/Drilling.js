@@ -1,9 +1,10 @@
 import { CONFIG } from '../config.js';
 
 export class DrillingSystem {
-  constructor(player, world) {
+  constructor(player, world, hazards = null) {
     this.player = player;
     this.world = world;
+    this.hazards = hazards;
     this.drillProgress = 0;
     this.targetTile = null;
   }
@@ -76,10 +77,10 @@ export class DrillingSystem {
     // Remove tile from world
     this.world.setTile(this.targetTile.x, this.targetTile.y, 'air');
 
-    // TODO: Handle hazards (gas, lava)
-    // if (tile.hazard === 'explosion') {
-    //   triggerGasExplosion(this.targetTile.x, this.targetTile.y);
-    // }
+    // Handle hazards
+    if (tile.hazard === 'explosion' && this.hazards) {
+      this.hazards.triggerGasExplosion(this.targetTile.x, this.targetTile.y);
+    }
 
     this.targetTile = null;
     this.drillProgress = 0;
