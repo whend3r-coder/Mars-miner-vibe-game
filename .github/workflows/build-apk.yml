@@ -27,6 +27,13 @@ jobs:
       - name: Build web app
         run: npm run build
 
+      - name: Verify dist directory
+        run: |
+          echo "Checking dist directory:"
+          ls -la dist/
+          echo "Files in dist:"
+          find dist -type f
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -36,46 +43,66 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Check Android SDK
+        run: |
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "Android SDK location:"
+          which sdkmanager || echo "sdkmanager not found in PATH"
+          ls -la $ANDROID_SDK_ROOT || echo "ANDROID_SDK_ROOT not set"
+
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses || true
 
       - name: Install Android SDK components
         run: |
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          sdkmanager --install "platform-tools"
+          sdkmanager --install "platforms;android-34"
+          sdkmanager --install "build-tools;34.0.0"
+          sdkmanager --list | grep -E "(platform|build-tools)" | head -20
 
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Verify Android project
+        run: |
+          echo "Android project structure:"
+          ls -la android/
+          echo "Android app directory:"
+          ls -la android/app/
+          echo "Checking for build.gradle:"
+          cat android/app/build.gradle | head -40
+
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
+      - name: Check Gradle version
+        working-directory: android
+        run: ./gradlew --version
+
       - name: Build Debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --stacktrace --info
+        run: ./gradlew assembleDebug --stacktrace --warning-mode all
 
       - name: List build outputs (debug)
         if: always()
         run: |
-          echo "Listing build outputs:"
-          find android/app/build/outputs -type f || echo "No build outputs found"
+          echo "Listing all build outputs:"
+          find android -name "*.apk" || echo "No APK files found"
+          echo "Build directory contents:"
+          ls -R android/app/build/ || echo "Build directory not found"
 
       - name: Upload Debug APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: mars-miner-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Build Release APK
         if: success()
         working-directory: android
-        run: ./gradlew assembleRelease --stacktrace --info
-
-      - name: List build outputs (release)
-        if: always()
-        run: |
-          echo "Listing build outputs:"
-          find android/app/build/outputs -type f || echo "No build outputs found"
+        run: ./gradlew assembleRelease --stacktrace --warning-mode all
 
       - name: Upload Signed Release APK
         if: success()
@@ -83,7 +110,7 @@ jobs:
         with:
           name: mars-miner-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Build summary
         if: always()
@@ -101,5 +128,15 @@ jobs:
             echo "✅ Release APK built successfully" >> $GITHUB_STEP_SUMMARY
             ls -lh android/app/build/outputs/apk/release/app-release.apk >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ Release APK build skipped or failed" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Release APK not built" >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            android/app/build/outputs/logs/
+            android/build/outputs/logs/
+          if-no-files-found: ignore
