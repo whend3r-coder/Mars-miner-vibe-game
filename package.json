@@ -1,0 +1,15 @@
+{
+  "name": "mars-miner",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A Motherload-inspired 2D mining game",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "dependencies": {}
+}
