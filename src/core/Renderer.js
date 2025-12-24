@@ -84,6 +84,9 @@ export class Renderer {
       }
     }
 
+    // Render surface buildings
+    this.renderSurfaceBuildings(world);
+
     // Render drilling target
     const targetTile = drillingSystem.getTargetTile();
     if (targetTile) {
@@ -176,6 +179,55 @@ export class Renderer {
     this.ctx.fillRect(CONFIG.INTERNAL_WIDTH - 120, padding, 110, 30);
     this.ctx.fillStyle = '#FFD700';
     this.ctx.fillText(`Depth: ${Math.floor(player.y)}m`, CONFIG.INTERNAL_WIDTH - 115, padding + 20);
+  }
+
+  renderSurfaceBuildings(world) {
+    // Draw simple building shapes at the surface (y = 0-2)
+    const buildings = [
+      { x: 45, y: -2, width: 3, height: 2, color: '#00AA00', name: 'FUEL', icon: 'F' },
+      { x: 49, y: -2, width: 3, height: 2, color: '#FFAA00', name: 'SHOP', icon: '$' },
+      { x: 53, y: -2, width: 3, height: 2, color: '#00AAFF', name: 'REPAIR', icon: '+' },
+    ];
+
+    buildings.forEach(building => {
+      const screenX = building.x * CONFIG.TILE_SIZE - this.cameraX;
+      const screenY = building.y * CONFIG.TILE_SIZE - this.cameraY;
+      const width = building.width * CONFIG.TILE_SIZE;
+      const height = building.height * CONFIG.TILE_SIZE;
+
+      // Draw building body
+      this.ctx.fillStyle = building.color;
+      this.ctx.fillRect(screenX, screenY, width, height);
+
+      // Draw building border
+      this.ctx.strokeStyle = '#FFFFFF';
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeRect(screenX, screenY, width, height);
+
+      // Draw roof
+      this.ctx.fillStyle = '#8B4513';
+      this.ctx.beginPath();
+      this.ctx.moveTo(screenX - 4, screenY);
+      this.ctx.lineTo(screenX + width / 2, screenY - 10);
+      this.ctx.lineTo(screenX + width + 4, screenY);
+      this.ctx.closePath();
+      this.ctx.fill();
+
+      // Draw icon
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.font = 'bold 20px monospace';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(building.icon, screenX + width / 2, screenY + height / 2);
+
+      // Draw label
+      this.ctx.font = '10px monospace';
+      this.ctx.fillStyle = '#FFD700';
+      this.ctx.fillText(building.name, screenX + width / 2, screenY - 15);
+    });
+
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'alphabetic';
   }
 
   renderSurfaceMenu(surfaceBase) {

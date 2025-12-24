@@ -10,15 +10,22 @@ export class DrillingSystem {
   }
 
   update(dt, input) {
-    const isDrillingDown = input.isDrilling();
+    const isDrilling = input.isDrilling();
+
+    // Only drill when actively pressing the drill button
+    if (!isDrilling) {
+      this.cancelDrill();
+      return;
+    }
+
     const horizontal = input.getHorizontal();
     const vertical = input.getVertical();
 
-    // Determine drill direction based on input
+    // Determine drill direction based on movement while drilling
     let tileX = Math.floor(this.player.getCenterX());
     let tileY = Math.floor(this.player.getCenterY());
 
-    // Priority: horizontal movement first, then vertical down
+    // If moving horizontally while drilling, drill in that direction
     if (horizontal < 0) {
       // Drilling left
       tileX = Math.floor(this.player.x - 0.5);
@@ -27,13 +34,10 @@ export class DrillingSystem {
       // Drilling right
       tileX = Math.floor(this.player.x + this.player.width + 0.5);
       tileY = Math.floor(this.player.getCenterY());
-    } else if (isDrillingDown || vertical > 0) {
-      // Drilling down (default)
+    } else {
+      // Drilling down (default when no horizontal movement)
       tileX = Math.floor(this.player.getCenterX());
       tileY = Math.floor(this.player.y + this.player.height + 0.5);
-    } else {
-      this.cancelDrill();
-      return;
     }
 
     // Check if tile is in range and solid
