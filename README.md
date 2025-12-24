@@ -49,11 +49,15 @@ npm run android:sync
 # Open in Android Studio (if installed)
 npm run android:open
 
-# Build APK (requires Android SDK)
+# Build debug APK (requires Android SDK)
 npm run android:build
+
+# Build signed release APK (ready for distribution)
+npm run android:build:release
 ```
 
-📱 **See [ANDROID_BUILD.md](./ANDROID_BUILD.md) for detailed Android build instructions and troubleshooting.**
+📱 **See [ANDROID_BUILD.md](./ANDROID_BUILD.md) for detailed Android build instructions.**
+🔐 **See [APK_BUILD_FIX.md](./APK_BUILD_FIX.md) for signing configuration and Android 16+ compatibility fixes.**
 
 ## 🎯 Controls
 
