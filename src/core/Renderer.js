@@ -51,7 +51,7 @@ export class Renderer {
     this.cameraY += (this.targetCameraY - this.cameraY) * CONFIG.CAMERA_LERP;
   }
 
-  render(world, player, drillingSystem) {
+  render(world, player, drillingSystem, touchControls) {
     // Clear screen
     this.ctx.fillStyle = '#0a0a0a';
     this.ctx.fillRect(0, 0, CONFIG.INTERNAL_WIDTH, CONFIG.INTERNAL_HEIGHT);
@@ -123,6 +123,11 @@ export class Renderer {
 
     // Render HUD
     this.renderHUD(player);
+
+    // Render touch controls
+    if (touchControls) {
+      touchControls.render(this.ctx);
+    }
   }
 
   renderHUD(player) {

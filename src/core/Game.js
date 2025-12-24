@@ -1,6 +1,7 @@
 import { CONFIG } from '../config.js';
 import { Input } from './Input.js';
 import { Renderer } from './Renderer.js';
+import { TouchControls } from './TouchControls.js';
 import { World } from '../world/World.js';
 import { Player } from '../entities/Player.js';
 import { DrillingSystem } from '../systems/Drilling.js';
@@ -10,7 +11,8 @@ export class Game {
     this.canvas = canvas;
 
     // Core systems
-    this.input = new Input();
+    this.touchControls = new TouchControls(canvas);
+    this.input = new Input(this.touchControls);
     this.renderer = new Renderer(canvas);
 
     // Game state
@@ -83,8 +85,8 @@ export class Game {
     // Update camera
     this.renderer.updateCamera(this.player);
 
-    // Render world, player, and HUD
-    this.renderer.render(this.world, this.player, this.drillingSystem);
+    // Render world, player, HUD, and touch controls
+    this.renderer.render(this.world, this.player, this.drillingSystem, this.touchControls);
   }
 
   // Save/Load methods (for future)

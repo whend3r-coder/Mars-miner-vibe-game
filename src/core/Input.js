@@ -1,8 +1,9 @@
 export class Input {
-  constructor() {
+  constructor(touchControls = null) {
     this.keys = {};
     this.keysPressed = {}; // For single-press detection
     this.keysReleased = {}; // For release detection
+    this.touchControls = touchControls;
 
     window.addEventListener('keydown', (e) => this.onKeyDown(e));
     window.addEventListener('keyup', (e) => this.onKeyUp(e));
@@ -41,23 +42,46 @@ export class Input {
   // Movement helpers
   getHorizontal() {
     let h = 0;
+
+    // Keyboard input
     if (this.isKeyDown('ArrowLeft') || this.isKeyDown('KeyA')) h -= 1;
     if (this.isKeyDown('ArrowRight') || this.isKeyDown('KeyD')) h += 1;
-    return h;
+
+    // Touch input
+    if (this.touchControls) {
+      h += this.touchControls.getHorizontal();
+    }
+
+    return Math.max(-1, Math.min(1, h));
   }
 
   getVertical() {
     let v = 0;
+
+    // Keyboard input
     if (this.isKeyDown('ArrowUp') || this.isKeyDown('KeyW')) v -= 1;
     if (this.isKeyDown('ArrowDown') || this.isKeyDown('KeyS')) v += 1;
-    return v;
+
+    // Touch input
+    if (this.touchControls) {
+      v += this.touchControls.getVertical();
+    }
+
+    return Math.max(-1, Math.min(1, v));
   }
 
   isDrilling() {
-    return this.isKeyDown('ArrowDown') || this.isKeyDown('KeyS');
+    const keyboardDrill = this.isKeyDown('ArrowDown') || this.isKeyDown('KeyS');
+    const touchDrill = this.touchControls && this.touchControls.getVertical() > 0.3;
+    const touchAction = this.touchControls && this.touchControls.isActionPressed();
+
+    return keyboardDrill || touchDrill || touchAction;
   }
 
   isFlying() {
-    return this.isKeyDown('ArrowUp') || this.isKeyDown('KeyW');
+    const keyboardFly = this.isKeyDown('ArrowUp') || this.isKeyDown('KeyW');
+    const touchFly = this.touchControls && this.touchControls.getVertical() < -0.3;
+
+    return keyboardFly || touchFly;
   }
 }
