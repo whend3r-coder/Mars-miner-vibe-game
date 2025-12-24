@@ -40,6 +40,21 @@ npm run build
 npm run preview
 ```
 
+### Android Build
+
+```bash
+# Sync web app with Android project
+npm run android:sync
+
+# Open in Android Studio (if installed)
+npm run android:open
+
+# Build APK (requires Android SDK)
+npm run android:build
+```
+
+📱 **See [ANDROID_BUILD.md](./ANDROID_BUILD.md) for detailed Android build instructions and troubleshooting.**
+
 ## 🎯 Controls
 
 - **Arrow Keys** or **WASD**: Move left/right, drill down, fly up
@@ -121,7 +136,8 @@ mars-miner/
 
 - **Runtime**: Vanilla JavaScript + HTML5 Canvas
 - **Build Tool**: Vite
-- **Future**: Capacitor for Android APK
+- **Mobile**: Capacitor (Android project configured)
+- **Platforms**: Web, Android (iOS ready to add)
 
 ## 📖 Design Document
 
