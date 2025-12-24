@@ -21,6 +21,14 @@ export class TouchControls {
       touchId: null
     };
 
+    // Surface interaction button
+    this.surfaceButton = {
+      pressed: false,
+      wasPressed: false
+    };
+    this.surfaceButtonVisible = false;
+    this.surfaceButtonCallback = null;
+
     if (this.enabled) {
       this.setupTouchEvents();
     }
@@ -39,7 +47,21 @@ export class TouchControls {
     for (const touch of e.changedTouches) {
       const rect = this.canvas.getBoundingClientRect();
       const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
       const screenMidpoint = rect.width / 2;
+
+      // Check surface button first
+      if (this.surfaceButtonVisible) {
+        const btnX = rect.width / 2 - 60;
+        const btnY = rect.height - 80;
+        if (x >= btnX && x <= btnX + 120 && y >= btnY && y <= btnY + 40) {
+          this.surfaceButton.pressed = true;
+          if (this.surfaceButtonCallback) {
+            this.surfaceButtonCallback();
+          }
+          continue;
+        }
+      }
 
       if (x < screenMidpoint) {
         // Left side - joystick
@@ -47,9 +69,9 @@ export class TouchControls {
           this.joystick.active = true;
           this.joystick.touchId = touch.identifier;
           this.joystick.startX = x;
-          this.joystick.startY = touch.clientY - rect.top;
+          this.joystick.startY = y;
           this.joystick.currentX = x;
-          this.joystick.currentY = touch.clientY - rect.top;
+          this.joystick.currentY = y;
           this.updateJoystickDirection();
         }
       } else {
@@ -121,6 +143,20 @@ export class TouchControls {
     return this.actionButton.active;
   }
 
+  isSurfaceButtonPressed() {
+    return this.surfaceButton.pressed && !this.surfaceButton.wasPressed;
+  }
+
+  update() {
+    this.surfaceButton.wasPressed = this.surfaceButton.pressed;
+    this.surfaceButton.pressed = false;
+  }
+
+  setSurfaceButtonVisible(visible, callback) {
+    this.surfaceButtonVisible = visible;
+    this.surfaceButtonCallback = callback;
+  }
+
   render(ctx) {
     if (!this.enabled) return;
 
@@ -154,6 +190,26 @@ export class TouchControls {
       ctx.save();
       ctx.fillStyle = 'rgba(255, 100, 0, 0.3)';
       ctx.fillRect(ctx.canvas.width / 2, 0, ctx.canvas.width / 2, ctx.canvas.height);
+      ctx.restore();
+    }
+
+    // Draw surface button
+    if (this.surfaceButtonVisible) {
+      ctx.save();
+      const btnX = ctx.canvas.width / 2 - 60;
+      const btnY = ctx.canvas.height - 80;
+
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
+      ctx.fillRect(btnX, btnY, 120, 40);
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(btnX, btnY, 120, 40);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ENTER BASE', ctx.canvas.width / 2, btnY + 20);
       ctx.restore();
     }
   }

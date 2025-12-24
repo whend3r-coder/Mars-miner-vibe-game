@@ -7,6 +7,7 @@ export class DrillingSystem {
     this.hazards = hazards;
     this.drillProgress = 0;
     this.targetTile = null;
+    this.lastDrillDirection = 'down'; // Remember drill direction for smoother feel
   }
 
   update(dt, input) {
@@ -21,21 +22,25 @@ export class DrillingSystem {
     const horizontal = input.getHorizontal();
     const vertical = input.getVertical();
 
-    // Determine drill direction based on movement while drilling
+    // Determine drill direction based on movement - update direction if moving
+    if (Math.abs(horizontal) > 0.1) {
+      this.lastDrillDirection = horizontal < 0 ? 'left' : 'right';
+    } else if (Math.abs(vertical) > 0.1 && vertical > 0) {
+      this.lastDrillDirection = 'down';
+    }
+
+    // Calculate target tile based on drill direction
     let tileX = Math.floor(this.player.getCenterX());
     let tileY = Math.floor(this.player.getCenterY());
 
-    // If moving horizontally while drilling, drill in that direction
-    if (horizontal < 0) {
-      // Drilling left
+    if (this.lastDrillDirection === 'left') {
       tileX = Math.floor(this.player.x - 0.5);
       tileY = Math.floor(this.player.getCenterY());
-    } else if (horizontal > 0) {
-      // Drilling right
+    } else if (this.lastDrillDirection === 'right') {
       tileX = Math.floor(this.player.x + this.player.width + 0.5);
       tileY = Math.floor(this.player.getCenterY());
     } else {
-      // Drilling down (default when no horizontal movement)
+      // Down is default
       tileX = Math.floor(this.player.getCenterX());
       tileY = Math.floor(this.player.y + this.player.height + 0.5);
     }

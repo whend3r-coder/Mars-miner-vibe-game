@@ -66,8 +66,11 @@ export class Game {
   }
 
   update(dt) {
+    // Update touch controls
+    this.touchControls.update();
+
     // Update surface base (handles menu interactions)
-    this.surfaceBase.update(this.input);
+    this.surfaceBase.update(this.input, this.touchControls);
 
     // Only update player and drilling when menu is not open
     if (!this.surfaceBase.showMenu) {

@@ -73,13 +73,22 @@ export class Renderer {
         const screenX = x * CONFIG.TILE_SIZE - this.cameraX;
         const screenY = y * CONFIG.TILE_SIZE - this.cameraY;
 
+        // Draw tile with shading for depth
         this.ctx.fillStyle = tile.color;
         this.ctx.fillRect(screenX, screenY, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
 
-        // Draw ore sparkle
+        // Add texture pattern based on tile type
         if (tile.ore) {
-          this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-          this.ctx.fillRect(screenX + 2, screenY + 2, 4, 4);
+          // Ores get sparkle effect
+          this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+          this.ctx.fillRect(screenX + 4, screenY + 4, 4, 4);
+          this.ctx.fillRect(screenX + CONFIG.TILE_SIZE - 8, screenY + CONFIG.TILE_SIZE - 8, 4, 4);
+        } else if (tile.solid) {
+          // Regular blocks get subtle shading
+          this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+          this.ctx.fillRect(screenX, screenY + CONFIG.TILE_SIZE - 4, CONFIG.TILE_SIZE, 4);
+          this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+          this.ctx.fillRect(screenX, screenY, CONFIG.TILE_SIZE, 2);
         }
       }
     }
@@ -139,54 +148,58 @@ export class Renderer {
   }
 
   renderHUD(player) {
-    const padding = 10;
+    const padding = 5;
+    const hudWidth = 100;
+    const hudHeight = 70;
 
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    this.ctx.fillRect(padding, padding, 150, 100);
+    this.ctx.fillRect(padding, padding, hudWidth, hudHeight);
 
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.font = '12px monospace';
+    this.ctx.font = '8px monospace';
 
     // Fuel
-    this.ctx.fillText(`Fuel: ${Math.floor(player.fuel)}/${player.maxFuel}`, padding + 5, padding + 20);
+    this.ctx.fillText(`Fuel: ${Math.floor(player.fuel)}/${player.maxFuel}`, padding + 3, padding + 10);
 
     // Fuel bar
     const fuelPercent = player.fuel / player.maxFuel;
+    const barWidth = hudWidth - 6;
     this.ctx.fillStyle = fuelPercent < 0.3 ? '#FF0000' : '#00FF00';
-    this.ctx.fillRect(padding + 5, padding + 25, 140 * fuelPercent, 10);
+    this.ctx.fillRect(padding + 3, padding + 13, barWidth * fuelPercent, 6);
     this.ctx.strokeStyle = '#FFFFFF';
-    this.ctx.strokeRect(padding + 5, padding + 25, 140, 10);
+    this.ctx.strokeRect(padding + 3, padding + 13, barWidth, 6);
 
     // Hull
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.fillText(`Hull: ${Math.floor(player.hull)}/${player.maxHull}`, padding + 5, padding + 50);
+    this.ctx.fillText(`Hull: ${Math.floor(player.hull)}/${player.maxHull}`, padding + 3, padding + 30);
 
     const hullPercent = player.hull / player.maxHull;
     this.ctx.fillStyle = hullPercent < 0.3 ? '#FF0000' : '#00FFFF';
-    this.ctx.fillRect(padding + 5, padding + 55, 140 * hullPercent, 10);
+    this.ctx.fillRect(padding + 3, padding + 33, barWidth * hullPercent, 6);
     this.ctx.strokeStyle = '#FFFFFF';
-    this.ctx.strokeRect(padding + 5, padding + 55, 140, 10);
+    this.ctx.strokeRect(padding + 3, padding + 33, barWidth, 6);
 
     // Cargo
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.fillText(`Cargo: ${player.cargo.length}/${player.maxCargo}`, padding + 5, padding + 80);
+    this.ctx.fillText(`Cargo: ${player.cargo.length}/${player.maxCargo}`, padding + 3, padding + 50);
 
     // Money
-    this.ctx.fillText(`Money: $${player.money}`, padding + 5, padding + 95);
+    this.ctx.fillText(`$${player.money}`, padding + 3, padding + 62);
 
     // Depth indicator
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    this.ctx.fillRect(CONFIG.INTERNAL_WIDTH - 120, padding, 110, 30);
+    this.ctx.fillRect(CONFIG.INTERNAL_WIDTH - 60, padding, 55, 20);
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.fillText(`Depth: ${Math.floor(player.y)}m`, CONFIG.INTERNAL_WIDTH - 115, padding + 20);
+    this.ctx.font = '8px monospace';
+    this.ctx.fillText(`${Math.floor(player.y)}m`, CONFIG.INTERNAL_WIDTH - 55, padding + 13);
   }
 
   renderSurfaceBuildings(world) {
-    // Draw simple building shapes at the surface (y = 0-2)
+    // Draw simple building shapes at the surface (sitting on ground at y=0)
     const buildings = [
-      { x: 45, y: -2, width: 3, height: 2, color: '#00AA00', name: 'FUEL', icon: 'F' },
-      { x: 49, y: -2, width: 3, height: 2, color: '#FFAA00', name: 'SHOP', icon: '$' },
-      { x: 53, y: -2, width: 3, height: 2, color: '#00AAFF', name: 'REPAIR', icon: '+' },
+      { x: 45, y: 0, width: 3, height: 3, color: '#00AA00', name: 'FUEL', icon: 'F' },
+      { x: 49, y: 0, width: 3, height: 3, color: '#FFAA00', name: 'SHOP', icon: '$' },
+      { x: 53, y: 0, width: 3, height: 3, color: '#00AAFF', name: 'REPAIR', icon: '+' },
     ];
 
     buildings.forEach(building => {

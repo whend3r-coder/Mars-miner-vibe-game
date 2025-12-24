@@ -14,8 +14,15 @@ export class SurfaceBase {
     this.selectedUpgrade = null;
   }
 
-  update(input) {
+  update(input, touchControls = null) {
     const atSurface = this.isAtSurface();
+
+    // Show/hide surface button on touch controls
+    if (touchControls) {
+      touchControls.setSurfaceButtonVisible(atSurface && !this.showMenu, () => {
+        this.openMenu('main');
+      });
+    }
 
     // Auto-open menu when at surface
     if (atSurface && !this.showMenu) {
