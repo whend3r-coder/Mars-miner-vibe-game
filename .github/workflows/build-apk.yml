@@ -36,31 +36,70 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
       - name: Sync Capacitor
         run: npx cap sync android
 
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
-      - name: Build Release APK
+      - name: Build Debug APK
         working-directory: android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleDebug --stacktrace --info
 
-      - name: Upload Signed APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: mars-miner-signed-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: error
-
-      - name: Build Debug APK (fallback)
-        if: failure()
-        working-directory: android
-        run: ./gradlew assembleDebug
+      - name: List build outputs (debug)
+        if: always()
+        run: |
+          echo "Listing build outputs:"
+          find android/app/build/outputs -type f || echo "No build outputs found"
 
       - name: Upload Debug APK
-        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: mars-miner-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
+
+      - name: Build Release APK
+        if: success()
+        working-directory: android
+        run: ./gradlew assembleRelease --stacktrace --info
+
+      - name: List build outputs (release)
+        if: always()
+        run: |
+          echo "Listing build outputs:"
+          find android/app/build/outputs -type f || echo "No build outputs found"
+
+      - name: Upload Signed Release APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mars-miner-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: warn
+
+      - name: Build summary
+        if: always()
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "✅ Debug APK built successfully" >> $GITHUB_STEP_SUMMARY
+            ls -lh android/app/build/outputs/apk/debug/app-debug.apk >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Debug APK build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+            echo "✅ Release APK built successfully" >> $GITHUB_STEP_SUMMARY
+            ls -lh android/app/build/outputs/apk/release/app-release.apk >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Release APK build skipped or failed" >> $GITHUB_STEP_SUMMARY
+          fi
