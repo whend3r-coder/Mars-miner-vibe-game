@@ -50,11 +50,16 @@ export class TouchControls {
       const y = touch.clientY - rect.top;
       const screenMidpoint = rect.width / 2;
 
-      // Check surface button first
+      // Check surface button first (convert internal coords to screen coords)
       if (this.surfaceButtonVisible) {
-        const btnX = rect.width / 2 - 60;
-        const btnY = rect.height - 80;
-        if (x >= btnX && x <= btnX + 120 && y >= btnY && y <= btnY + 40) {
+        const scaleX = rect.width / this.canvas.width;
+        const scaleY = rect.height / this.canvas.height;
+        const btnX = (this.canvas.width / 2 - 60) * scaleX;
+        const btnY = (this.canvas.height - 35) * scaleY;
+        const btnWidth = 120 * scaleX;
+        const btnHeight = 30 * scaleY;
+
+        if (x >= btnX && x <= btnX + btnWidth && y >= btnY && y <= btnY + btnHeight) {
           this.surfaceButton.pressed = true;
           if (this.surfaceButtonCallback) {
             this.surfaceButtonCallback();
@@ -160,13 +165,23 @@ export class TouchControls {
   render(ctx) {
     if (!this.enabled) return;
 
+    // Get scale ratio between screen and internal canvas
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = ctx.canvas.width / rect.width;
+    const scaleY = ctx.canvas.height / rect.height;
+
     // Draw joystick
     if (this.joystick.active) {
       ctx.save();
 
+      const startX = this.joystick.startX * scaleX;
+      const startY = this.joystick.startY * scaleY;
+      const currentX = this.joystick.currentX * scaleX;
+      const currentY = this.joystick.currentY * scaleY;
+
       // Outer circle
       ctx.beginPath();
-      ctx.arc(this.joystick.startX, this.joystick.startY, 50, 0, Math.PI * 2);
+      ctx.arc(startX, startY, 50 * scaleX, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
       ctx.fill();
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
@@ -175,7 +190,7 @@ export class TouchControls {
 
       // Inner circle (stick)
       ctx.beginPath();
-      ctx.arc(this.joystick.currentX, this.joystick.currentY, 25, 0, Math.PI * 2);
+      ctx.arc(currentX, currentY, 25 * scaleX, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.fill();
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
@@ -197,19 +212,21 @@ export class TouchControls {
     if (this.surfaceButtonVisible) {
       ctx.save();
       const btnX = ctx.canvas.width / 2 - 60;
-      const btnY = ctx.canvas.height - 80;
+      const btnY = ctx.canvas.height - 35;
+      const btnWidth = 120;
+      const btnHeight = 30;
 
       ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
-      ctx.fillRect(btnX, btnY, 120, 40);
+      ctx.fillRect(btnX, btnY, btnWidth, btnHeight);
       ctx.strokeStyle = '#FFFFFF';
       ctx.lineWidth = 2;
-      ctx.strokeRect(btnX, btnY, 120, 40);
+      ctx.strokeRect(btnX, btnY, btnWidth, btnHeight);
 
       ctx.fillStyle = '#000000';
-      ctx.font = 'bold 16px monospace';
+      ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('ENTER BASE', ctx.canvas.width / 2, btnY + 20);
+      ctx.fillText('ENTER BASE', ctx.canvas.width / 2, btnY + btnHeight / 2);
       ctx.restore();
     }
   }

@@ -143,55 +143,55 @@ export class Renderer {
 
     // Render surface base menu
     if (surfaceBase) {
-      this.renderSurfaceMenu(surfaceBase);
+      this.renderSurfaceMenu(surfaceBase, touchControls);
     }
   }
 
   renderHUD(player) {
-    const padding = 5;
-    const hudWidth = 100;
-    const hudHeight = 70;
+    const padding = 3;
+    const hudWidth = 70;
+    const hudHeight = 50;
 
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     this.ctx.fillRect(padding, padding, hudWidth, hudHeight);
 
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.font = '8px monospace';
+    this.ctx.font = '6px monospace';
 
     // Fuel
-    this.ctx.fillText(`Fuel: ${Math.floor(player.fuel)}/${player.maxFuel}`, padding + 3, padding + 10);
+    this.ctx.fillText(`F:${Math.floor(player.fuel)}/${player.maxFuel}`, padding + 2, padding + 7);
 
     // Fuel bar
     const fuelPercent = player.fuel / player.maxFuel;
-    const barWidth = hudWidth - 6;
+    const barWidth = hudWidth - 4;
     this.ctx.fillStyle = fuelPercent < 0.3 ? '#FF0000' : '#00FF00';
-    this.ctx.fillRect(padding + 3, padding + 13, barWidth * fuelPercent, 6);
+    this.ctx.fillRect(padding + 2, padding + 9, barWidth * fuelPercent, 4);
     this.ctx.strokeStyle = '#FFFFFF';
-    this.ctx.strokeRect(padding + 3, padding + 13, barWidth, 6);
+    this.ctx.strokeRect(padding + 2, padding + 9, barWidth, 4);
 
     // Hull
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.fillText(`Hull: ${Math.floor(player.hull)}/${player.maxHull}`, padding + 3, padding + 30);
+    this.ctx.fillText(`H:${Math.floor(player.hull)}/${player.maxHull}`, padding + 2, padding + 20);
 
     const hullPercent = player.hull / player.maxHull;
     this.ctx.fillStyle = hullPercent < 0.3 ? '#FF0000' : '#00FFFF';
-    this.ctx.fillRect(padding + 3, padding + 33, barWidth * hullPercent, 6);
+    this.ctx.fillRect(padding + 2, padding + 22, barWidth * hullPercent, 4);
     this.ctx.strokeStyle = '#FFFFFF';
-    this.ctx.strokeRect(padding + 3, padding + 33, barWidth, 6);
+    this.ctx.strokeRect(padding + 2, padding + 22, barWidth, 4);
 
     // Cargo
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.fillText(`Cargo: ${player.cargo.length}/${player.maxCargo}`, padding + 3, padding + 50);
+    this.ctx.fillText(`C:${player.cargo.length}/${player.maxCargo}`, padding + 2, padding + 33);
 
     // Money
-    this.ctx.fillText(`$${player.money}`, padding + 3, padding + 62);
+    this.ctx.fillText(`$${player.money}`, padding + 2, padding + 43);
 
     // Depth indicator
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    this.ctx.fillRect(CONFIG.INTERNAL_WIDTH - 60, padding, 55, 20);
+    this.ctx.fillRect(CONFIG.INTERNAL_WIDTH - 40, padding, 37, 12);
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = '8px monospace';
-    this.ctx.fillText(`${Math.floor(player.y)}m`, CONFIG.INTERNAL_WIDTH - 55, padding + 13);
+    this.ctx.font = '6px monospace';
+    this.ctx.fillText(`${Math.floor(player.y)}m`, CONFIG.INTERNAL_WIDTH - 38, padding + 8);
   }
 
   renderSurfaceBuildings(world) {
@@ -243,11 +243,11 @@ export class Renderer {
     this.ctx.textBaseline = 'alphabetic';
   }
 
-  renderSurfaceMenu(surfaceBase) {
+  renderSurfaceMenu(surfaceBase, touchControls) {
     const menuState = surfaceBase.getMenuState();
 
-    // Show "Press E to open base" hint when at surface
-    if (!menuState && surfaceBase.isAtSurface()) {
+    // Only show keyboard hint if NOT using touch controls
+    if (!menuState && surfaceBase.isAtSurface() && touchControls && !touchControls.enabled) {
       this.ctx.save();
       this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
       this.ctx.fillRect(CONFIG.INTERNAL_WIDTH / 2 - 100, CONFIG.INTERNAL_HEIGHT - 60, 200, 50);
