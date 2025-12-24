@@ -51,25 +51,23 @@ jobs:
           sdkmanager --install "build-tools;34.0.0"
 
       - name: Add Android platform
-        run: npx cap add android
+        run: |
+          if [ -d "android" ]; then
+            echo "Android directory exists, removing to recreate..."
+            rm -rf android
+          fi
+          echo "Adding Android platform..."
+          npx cap add android
 
       - name: Apply custom build configuration
         run: |
-          echo "Copying custom build.gradle and keystore..."
-          # The build.gradle and keystore are in git, restore them
-          git checkout android/app/build.gradle android/app/release.keystore || true
+          echo "Restoring custom build.gradle and keystore from git..."
+          git checkout android/app/build.gradle android/app/release.keystore android/variables.gradle || echo "Some files may not exist in git"
 
-          echo "Checking if files exist:"
-          ls -la android/app/build.gradle
-          ls -la android/app/release.keystore
-
-      - name: Apply SDK version
-        run: |
-          # Copy variables.gradle from repo
-          git checkout android/variables.gradle || true
-
-          echo "Checking variables.gradle:"
-          cat android/variables.gradle
+          echo "Verifying files:"
+          ls -la android/app/build.gradle || echo "build.gradle not found"
+          ls -la android/app/release.keystore || echo "keystore not found"
+          ls -la android/variables.gradle || echo "variables.gradle not found"
 
       - name: Sync Capacitor
         run: npx cap sync android
