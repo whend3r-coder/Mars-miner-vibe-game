@@ -118,27 +118,24 @@ export class SurfaceBase {
     }
     const { centerX, centerY, scale } = this.menuLayout;
 
-    // Convert touch from canvas to screen coordinates
-    const canvasScale = touchControls.canvas.width / CONFIG.INTERNAL_WIDTH;
-    const touchX = touch.x * canvasScale;
-    const touchY = touch.y * canvasScale;
+    // Touch coordinates are already in canvas space (native resolution)
+    // No conversion needed since canvas is now at native resolution
+    const touchX = touch.x;
+    const touchY = touch.y;
 
     // Add debug info
     if (this.renderer) {
       this.renderer.debugInfo.push(`Touch Debug (${this.menuType || 'none'}):`);
-      this.renderer.debugInfo.push(`Canvas: ${touch.x.toFixed(0)}, ${touch.y.toFixed(0)}`);
-      this.renderer.debugInfo.push(`Screen: ${touchX.toFixed(0)}, ${touchY.toFixed(0)}`);
+      this.renderer.debugInfo.push(`Touch: ${touchX.toFixed(0)}, ${touchY.toFixed(0)}`);
       this.renderer.debugInfo.push(`Center: ${centerX.toFixed(0)}, ${centerY.toFixed(0)}`);
-      this.renderer.debugInfo.push(`Scale: ${scale.toFixed(2)}, CanvasScale: ${canvasScale.toFixed(2)}`);
-      this.renderer.debugInfo.push(`Canvas size: ${touchControls.canvas.width}x${touchControls.canvas.height}`);
-      this.renderer.debugInfo.push(`Internal: ${CONFIG.INTERNAL_WIDTH}x${CONFIG.INTERNAL_HEIGHT}`);
+      this.renderer.debugInfo.push(`Scale: ${scale.toFixed(2)}`);
+      this.renderer.debugInfo.push(`Canvas: ${touchControls.canvas.width}x${touchControls.canvas.height}`);
     }
 
     console.log('Touch detected:', {
-      canvasTouch: { x: touch.x, y: touch.y },
-      screenTouch: { x: touchX, y: touchY },
+      touch: { x: touchX, y: touchY },
       menuCenter: { x: centerX, y: centerY },
-      scale, canvasScale
+      scale
     });
 
     if (this.menuType === 'main') {

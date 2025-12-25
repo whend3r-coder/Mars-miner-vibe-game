@@ -6,13 +6,9 @@ export class Renderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
 
-    // Set internal resolution
-    this.canvas.width = CONFIG.INTERNAL_WIDTH;
-    this.canvas.height = CONFIG.INTERNAL_HEIGHT;
-
-    // Scale canvas to fit window
-    this.scaleCanvas();
-    window.addEventListener('resize', () => this.scaleCanvas());
+    // Set canvas to native screen resolution for crisp rendering
+    this.updateCanvasSize();
+    window.addEventListener('resize', () => this.updateCanvasSize());
 
     // Camera
     this.cameraX = 0;
@@ -62,24 +58,36 @@ export class Renderer {
     }
   }
 
-  scaleCanvas() {
+  updateCanvasSize() {
+    const dpr = window.devicePixelRatio || 1;
     const aspectRatio = CONFIG.INTERNAL_WIDTH / CONFIG.INTERNAL_HEIGHT;
     const windowRatio = window.innerWidth / window.innerHeight;
 
-    let width, height;
+    let cssWidth, cssHeight;
 
     if (windowRatio > aspectRatio) {
       // Window is wider
-      height = window.innerHeight * 0.9;
-      width = height * aspectRatio;
+      cssHeight = window.innerHeight * 0.9;
+      cssWidth = cssHeight * aspectRatio;
     } else {
       // Window is taller
-      width = window.innerWidth * 0.9;
-      height = width / aspectRatio;
+      cssWidth = window.innerWidth * 0.9;
+      cssHeight = cssWidth / aspectRatio;
     }
 
-    this.canvas.style.width = `${width}px`;
-    this.canvas.style.height = `${height}px`;
+    // Set CSS size
+    this.canvas.style.width = `${cssWidth}px`;
+    this.canvas.style.height = `${cssHeight}px`;
+
+    // Set internal resolution to match CSS size * devicePixelRatio for crisp rendering
+    this.canvas.width = cssWidth * dpr;
+    this.canvas.height = cssHeight * dpr;
+
+    // Calculate scale factor for game world rendering
+    this.scale = this.canvas.width / CONFIG.INTERNAL_WIDTH;
+
+    // Disable image smoothing for pixel art
+    this.ctx.imageSmoothingEnabled = false;
   }
 
   updateCamera(player) {
@@ -93,9 +101,13 @@ export class Renderer {
   }
 
   render(world, player, drillingSystem, touchControls, surfaceBase) {
-    // Clear screen
+    // Clear screen at full resolution
     this.ctx.fillStyle = '#0a0a0a';
-    this.ctx.fillRect(0, 0, CONFIG.INTERNAL_WIDTH, CONFIG.INTERNAL_HEIGHT);
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Apply scaling for game world rendering (pixel art at internal resolution)
+    this.ctx.save();
+    this.ctx.scale(this.scale, this.scale);
 
     // Calculate visible tile range
     const startTileX = Math.floor(this.cameraX / CONFIG.TILE_SIZE);
@@ -214,6 +226,9 @@ export class Renderer {
       );
     }
 
+    // Restore context - render UI at native resolution for crisp text
+    this.ctx.restore();
+
     // Render HUD
     this.renderHUD(player);
 
@@ -232,13 +247,10 @@ export class Renderer {
   }
 
   renderHUD(player) {
-    // Render HUD at screen resolution for crisp text
+    // Render HUD at native resolution for crisp text
     this.ctx.save();
 
-    // Reset transform to render at full canvas resolution
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-    const scale = this.canvas.width / CONFIG.INTERNAL_WIDTH;
+    const scale = this.scale;
     const padding = 3 * scale;
     const hudWidth = 70 * scale;
     const hudHeight = 50 * scale;
@@ -356,10 +368,9 @@ export class Renderer {
     const menuState = surfaceBase.getMenuState();
 
     if (!menuState && surfaceBase.isAtSurface() && touchControls && !touchControls.enabled) {
-      // Keyboard hint - render at high resolution
+      // Keyboard hint - render at native resolution
       this.ctx.save();
-      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-      const scale = this.canvas.width / CONFIG.INTERNAL_WIDTH;
+      const scale = this.scale;
 
       const centerX = this.canvas.width / 2;
       const centerY = this.canvas.height - 60 * scale;
@@ -382,10 +393,9 @@ export class Renderer {
 
     if (!menuState) return;
 
-    // Draw menu at high resolution for crisp text
+    // Draw menu at native resolution for crisp text
     this.ctx.save();
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const scale = this.canvas.width / CONFIG.INTERNAL_WIDTH;
+    const scale = this.scale;
 
     // Draw overlay
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
@@ -527,9 +537,7 @@ export class Renderer {
     if (!touchControls || this.debugInfo.length === 0) return;
 
     this.ctx.save();
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Screen resolution
-
-    const scale = this.canvas.width / CONFIG.INTERNAL_WIDTH;
+    const scale = this.scale;
     const fontSize = Math.floor(10 * scale);
     const lineHeight = fontSize + 4 * scale;
     const padding = 5 * scale;
