@@ -29,6 +29,13 @@ export class TouchControls {
     this.surfaceButtonVisible = false;
     this.surfaceButtonCallback = null;
 
+    // Last touch for menu interaction (in canvas coordinates)
+    this.lastTouch = {
+      x: 0,
+      y: 0,
+      justReleased: false
+    };
+
     if (this.enabled) {
       this.setupTouchEvents();
     }
@@ -106,6 +113,18 @@ export class TouchControls {
     e.preventDefault();
 
     for (const touch of e.changedTouches) {
+      // Track last touch position in canvas coordinates for menu interaction
+      const rect = this.canvas.getBoundingClientRect();
+      const screenX = touch.clientX - rect.left;
+      const screenY = touch.clientY - rect.top;
+
+      // Convert to canvas coordinates
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      this.lastTouch.x = screenX * scaleX;
+      this.lastTouch.y = screenY * scaleY;
+      this.lastTouch.justReleased = true;
+
       if (this.joystick.active && touch.identifier === this.joystick.touchId) {
         this.joystick.active = false;
         this.joystick.touchId = null;
@@ -155,6 +174,11 @@ export class TouchControls {
   update() {
     this.surfaceButton.wasPressed = this.surfaceButton.pressed;
     this.surfaceButton.pressed = false;
+    this.lastTouch.justReleased = false;
+  }
+
+  getLastTouch() {
+    return this.lastTouch;
   }
 
   setSurfaceButtonVisible(visible, callback) {

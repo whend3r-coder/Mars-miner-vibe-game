@@ -227,50 +227,63 @@ export class Renderer {
   }
 
   renderHUD(player) {
-    const padding = 3;
-    const hudWidth = 70;
-    const hudHeight = 50;
+    // Render HUD at screen resolution for crisp text
+    this.ctx.save();
+
+    // Reset transform to render at full canvas resolution
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    const scale = this.canvas.width / CONFIG.INTERNAL_WIDTH;
+    const padding = 3 * scale;
+    const hudWidth = 70 * scale;
+    const hudHeight = 50 * scale;
 
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     this.ctx.fillRect(padding, padding, hudWidth, hudHeight);
 
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.font = '6px monospace';
+    this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
 
     // Fuel
-    this.ctx.fillText(`F:${Math.floor(player.fuel)}/${player.maxFuel}`, padding + 2, padding + 7);
+    this.ctx.fillText(`F:${Math.floor(player.fuel)}/${player.maxFuel}`, padding + 2 * scale, padding + 7 * scale);
 
     // Fuel bar
     const fuelPercent = player.fuel / player.maxFuel;
-    const barWidth = hudWidth - 4;
+    const barWidth = hudWidth - 4 * scale;
     this.ctx.fillStyle = fuelPercent < 0.3 ? '#FF0000' : '#00FF00';
-    this.ctx.fillRect(padding + 2, padding + 9, barWidth * fuelPercent, 4);
+    this.ctx.fillRect(padding + 2 * scale, padding + 9 * scale, barWidth * fuelPercent, 4 * scale);
     this.ctx.strokeStyle = '#FFFFFF';
-    this.ctx.strokeRect(padding + 2, padding + 9, barWidth, 4);
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(padding + 2 * scale, padding + 9 * scale, barWidth, 4 * scale);
 
     // Hull
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.fillText(`H:${Math.floor(player.hull)}/${player.maxHull}`, padding + 2, padding + 20);
+    this.ctx.fillText(`H:${Math.floor(player.hull)}/${player.maxHull}`, padding + 2 * scale, padding + 20 * scale);
 
     const hullPercent = player.hull / player.maxHull;
     this.ctx.fillStyle = hullPercent < 0.3 ? '#FF0000' : '#00FFFF';
-    this.ctx.fillRect(padding + 2, padding + 22, barWidth * hullPercent, 4);
+    this.ctx.fillRect(padding + 2 * scale, padding + 22 * scale, barWidth * hullPercent, 4 * scale);
     this.ctx.strokeStyle = '#FFFFFF';
-    this.ctx.strokeRect(padding + 2, padding + 22, barWidth, 4);
+    this.ctx.strokeRect(padding + 2 * scale, padding + 22 * scale, barWidth, 4 * scale);
 
     // Cargo
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.fillText(`C:${player.cargo.length}/${player.maxCargo}`, padding + 2, padding + 33);
+    this.ctx.fillText(`C:${player.cargo.length}/${player.maxCargo}`, padding + 2 * scale, padding + 33 * scale);
 
     // Money
-    this.ctx.fillText(`$${player.money}`, padding + 2, padding + 43);
+    this.ctx.fillText(`$${player.money}`, padding + 2 * scale, padding + 43 * scale);
 
-    // Depth indicator
+    // Depth indicator (top right)
+    const depthWidth = 35 * scale;
+    const depthHeight = 12 * scale;
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    this.ctx.fillRect(CONFIG.INTERNAL_WIDTH - 40, padding, 37, 12);
+    this.ctx.fillRect(this.canvas.width - depthWidth - padding, padding, depthWidth, depthHeight);
+
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = '6px monospace';
-    this.ctx.fillText(`${Math.floor(player.y)}m`, CONFIG.INTERNAL_WIDTH - 38, padding + 8);
+    this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
+    this.ctx.fillText(`${Math.floor(player.y)}m`, this.canvas.width - depthWidth - padding + 2 * scale, padding + 8 * scale);
+
+    this.ctx.restore();
   }
 
   renderSurfaceBuildings(world) {
@@ -364,27 +377,27 @@ export class Renderer {
     const centerY = CONFIG.INTERNAL_HEIGHT / 2;
 
     if (menuState.type === 'main') {
-      this.renderMainMenu(menuState, centerX, centerY);
+      this.renderMainMenu(menuState, centerX, centerY, touchControls);
     } else if (menuState.type === 'upgrade') {
-      this.renderUpgradeMenu(menuState, centerX, centerY);
+      this.renderUpgradeMenu(menuState, centerX, centerY, touchControls);
     }
 
     this.ctx.restore();
   }
 
-  renderMainMenu(menuState, centerX, centerY) {
+  renderMainMenu(menuState, centerX, centerY, touchControls = null) {
     const { player, economy } = menuState;
 
     // Title
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = 'bold 20px monospace';
+    this.ctx.font = 'bold 8px monospace';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('SURFACE BASE', centerX, centerY - 120);
+    this.ctx.fillText('SURFACE BASE', centerX, centerY - 50);
 
     // Player stats
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.font = '14px monospace';
-    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 80);
+    this.ctx.font = '6px monospace';
+    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 35);
 
     // Menu options
     const options = [
@@ -395,34 +408,44 @@ export class Renderer {
     ];
 
     this.ctx.textAlign = 'left';
-    this.ctx.font = '16px monospace';
+    this.ctx.font = '7px monospace';
 
     options.forEach((option, index) => {
-      const y = centerY - 30 + index * 30;
+      const y = centerY - 15 + index * 12;
       this.ctx.fillStyle = option.color;
-      this.ctx.fillText(`[${option.key}] ${option.text}`, centerX - 150, y);
+      this.ctx.fillText(`[${option.key}] ${option.text}`, centerX - 60, y);
     });
 
-    // Instructions
-    this.ctx.fillStyle = '#888888';
-    this.ctx.font = '12px monospace';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('Press ESC to close', centerX, centerY + 100);
+    // Close button for touch controls
+    if (touchControls && touchControls.enabled) {
+      this.ctx.fillStyle = '#FF0000';
+      this.ctx.fillRect(centerX + 50, centerY - 55, 20, 10);
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.font = '7px monospace';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('X', centerX + 60, centerY - 48);
+    } else {
+      // Instructions for keyboard
+      this.ctx.fillStyle = '#888888';
+      this.ctx.font = '5px monospace';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('Press ESC to close', centerX, centerY + 40);
+    }
   }
 
-  renderUpgradeMenu(menuState, centerX, centerY) {
+  renderUpgradeMenu(menuState, centerX, centerY, touchControls = null) {
     const { player, economy } = menuState;
 
     // Title
     this.ctx.fillStyle = '#FF00FF';
-    this.ctx.font = 'bold 18px monospace';
+    this.ctx.font = 'bold 8px monospace';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('UPGRADES', centerX, centerY - 120);
+    this.ctx.fillText('UPGRADES', centerX, centerY - 50);
 
     // Money
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = '14px monospace';
-    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 95);
+    this.ctx.font = '6px monospace';
+    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 40);
 
     // Upgrade options
     const upgrades = economy.upgrades;
@@ -435,36 +458,46 @@ export class Renderer {
     ];
 
     this.ctx.textAlign = 'left';
-    this.ctx.font = '13px monospace';
+    this.ctx.font = '6px monospace';
 
     upgradeKeys.forEach((item, index) => {
       const upgrade = upgrades.find(u => u.type === item.type);
-      const y = centerY - 60 + index * 35;
+      const y = centerY - 25 + index * 14;
 
       if (upgrade.isMaxed) {
         this.ctx.fillStyle = '#666666';
-        this.ctx.fillText(`[${item.key}] ${item.name} - MAX LEVEL`, centerX - 180, y);
+        this.ctx.fillText(`[${item.key}] ${item.name} - MAX`, centerX - 70, y);
       } else {
         const canAfford = player.money >= upgrade.nextCost;
         this.ctx.fillStyle = canAfford ? '#00FF00' : '#FF6666';
         this.ctx.fillText(
           `[${item.key}] ${item.name} Lv${upgrade.currentLevel + 1} - $${upgrade.nextCost}`,
-          centerX - 180,
+          centerX - 70,
           y
         );
 
         // Description
         this.ctx.fillStyle = '#AAAAAA';
-        this.ctx.font = '11px monospace';
-        this.ctx.fillText(upgrade.description, centerX - 175, y + 13);
-        this.ctx.font = '13px monospace';
+        this.ctx.font = '5px monospace';
+        this.ctx.fillText(upgrade.description, centerX - 68, y + 6);
+        this.ctx.font = '6px monospace';
       }
     });
 
-    // Instructions
-    this.ctx.fillStyle = '#888888';
-    this.ctx.font = '12px monospace';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('Press B or ESC to go back', centerX, centerY + 100);
+    // Back button for touch controls
+    if (touchControls && touchControls.enabled) {
+      this.ctx.fillStyle = '#FF6600';
+      this.ctx.fillRect(centerX - 20, centerY + 45, 40, 10);
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.font = '6px monospace';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('BACK', centerX, centerY + 52);
+    } else {
+      // Instructions for keyboard
+      this.ctx.fillStyle = '#888888';
+      this.ctx.font = '5px monospace';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('Press B or ESC to go back', centerX, centerY + 50);
+    }
   }
 }

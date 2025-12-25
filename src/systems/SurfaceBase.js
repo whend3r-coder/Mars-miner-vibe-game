@@ -39,7 +39,7 @@ export class SurfaceBase {
 
     // Handle menu interactions
     if (this.showMenu) {
-      this.handleMenuInput(input);
+      this.handleMenuInput(input, touchControls);
     }
   }
 
@@ -58,7 +58,12 @@ export class SurfaceBase {
     this.selectedUpgrade = null;
   }
 
-  handleMenuInput(input) {
+  handleMenuInput(input, touchControls = null) {
+    // Handle touch input if available
+    if (touchControls && touchControls.enabled) {
+      this.handleTouchMenuInput(touchControls);
+    }
+
     // Number key selections for main menu
     if (this.menuType === 'main') {
       if (input.isKeyPressed('Digit1')) {
@@ -88,6 +93,64 @@ export class SurfaceBase {
         this.openMenu('main');
       }
     }
+  }
+
+  handleTouchMenuInput(touchControls) {
+    // Get last touch position in canvas coordinates
+    const touch = touchControls.getLastTouch();
+    if (!touch || !touch.justReleased) return;
+
+    const centerX = CONFIG.INTERNAL_WIDTH / 2;
+    const centerY = CONFIG.INTERNAL_HEIGHT / 2;
+
+    if (this.menuType === 'main') {
+      // Check close button (X button at top right of menu)
+      if (this.isPointInRect(touch.x, touch.y, centerX + 50, centerY - 55, 20, 10)) {
+        this.closeMenu();
+        return;
+      }
+
+      // Check main menu option buttons
+      const options = [
+        { y: centerY - 15, action: () => this.refuelFull() },
+        { y: centerY - 3, action: () => this.sellAll() },
+        { y: centerY + 9, action: () => this.repairFull() },
+        { y: centerY + 21, action: () => this.openMenu('upgrade') },
+      ];
+
+      for (const option of options) {
+        if (this.isPointInRect(touch.x, touch.y, centerX - 60, option.y - 8, 120, 10)) {
+          option.action();
+          return;
+        }
+      }
+    } else if (this.menuType === 'upgrade') {
+      // Check back button
+      if (this.isPointInRect(touch.x, touch.y, centerX - 20, centerY + 45, 40, 10)) {
+        this.openMenu('main');
+        return;
+      }
+
+      // Check upgrade option buttons
+      const upgrades = [
+        { y: centerY - 25, type: 'drillSpeed' },
+        { y: centerY - 11, type: 'drillPower' },
+        { y: centerY + 3, type: 'fuelTank' },
+        { y: centerY + 17, type: 'cargoBay' },
+        { y: centerY + 31, type: 'hull' },
+      ];
+
+      for (const upgrade of upgrades) {
+        if (this.isPointInRect(touch.x, touch.y, centerX - 70, upgrade.y - 6, 140, 12)) {
+          this.buyUpgrade(upgrade.type);
+          return;
+        }
+      }
+    }
+  }
+
+  isPointInRect(px, py, rx, ry, rw, rh) {
+    return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
   }
 
   refuelFull() {
