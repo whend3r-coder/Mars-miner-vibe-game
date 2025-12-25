@@ -28,11 +28,11 @@ export class Renderer {
 
   loadSprites() {
     const spritesToLoad = {
-      player: 'assets/sprites/player.png',
-      fuelstation: 'assets/sprites/fuelstation.png',
-      shop: 'assets/sprites/shop.png',
-      repairshop: 'assets/sprites/repairshop.png',
-      marsdirt: 'assets/sprites/marsdirt.png'
+      player: '/assets/sprites/player.png',
+      fuelstation: '/assets/sprites/fuelstation.png',
+      shop: '/assets/sprites/shop.png',
+      repairshop: '/assets/sprites/repairshop.png',
+      marsdirt: '/assets/sprites/marsdirt.png'
     };
 
     let loadedCount = 0;
