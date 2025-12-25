@@ -29,6 +29,9 @@ export class TouchControls {
     this.surfaceButtonVisible = false;
     this.surfaceButtonCallback = null;
 
+    // Menu state - when true, disable joystick/action buttons
+    this.menuOpen = false;
+
     // Last touch for menu interaction (in canvas coordinates)
     this.lastTouch = {
       x: 0,
@@ -79,22 +82,25 @@ export class TouchControls {
         }
       }
 
-      if (x < screenMidpoint) {
-        // Left side - joystick
-        if (!this.joystick.active) {
-          this.joystick.active = true;
-          this.joystick.touchId = touch.identifier;
-          this.joystick.startX = x;
-          this.joystick.startY = y;
-          this.joystick.currentX = x;
-          this.joystick.currentY = y;
-          this.updateJoystickDirection();
-        }
-      } else {
-        // Right side - action button
-        if (!this.actionButton.active) {
-          this.actionButton.active = true;
-          this.actionButton.touchId = touch.identifier;
+      // Only process joystick/action buttons if menu is NOT open
+      if (!this.menuOpen) {
+        if (x < screenMidpoint) {
+          // Left side - joystick
+          if (!this.joystick.active) {
+            this.joystick.active = true;
+            this.joystick.touchId = touch.identifier;
+            this.joystick.startX = x;
+            this.joystick.startY = y;
+            this.joystick.currentX = x;
+            this.joystick.currentY = y;
+            this.updateJoystickDirection();
+          }
+        } else {
+          // Right side - action button
+          if (!this.actionButton.active) {
+            this.actionButton.active = true;
+            this.actionButton.touchId = touch.identifier;
+          }
         }
       }
     }
@@ -188,6 +194,19 @@ export class TouchControls {
   setSurfaceButtonVisible(visible, callback) {
     this.surfaceButtonVisible = visible;
     this.surfaceButtonCallback = callback;
+  }
+
+  setMenuOpen(isOpen) {
+    this.menuOpen = isOpen;
+    // Clear joystick and action button when menu opens
+    if (isOpen) {
+      this.joystick.active = false;
+      this.joystick.touchId = null;
+      this.joystick.dx = 0;
+      this.joystick.dy = 0;
+      this.actionButton.active = false;
+      this.actionButton.touchId = null;
+    }
   }
 
   render(ctx) {

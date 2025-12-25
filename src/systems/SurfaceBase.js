@@ -6,6 +6,7 @@ export class SurfaceBase {
     this.economy = economy;
     this.game = game;
     this.renderer = null; // Set via setRenderer()
+    this.touchControls = null; // Set in update()
 
     // Surface zone is top few tiles
     this.surfaceDepth = 3; // tiles
@@ -22,6 +23,9 @@ export class SurfaceBase {
 
   update(input, touchControls = null) {
     const atSurface = this.isAtSurface();
+
+    // Store touch controls reference
+    this.touchControls = touchControls;
 
     // Show/hide surface button on touch controls
     if (touchControls) {
@@ -56,12 +60,20 @@ export class SurfaceBase {
   openMenu(type = 'main') {
     this.showMenu = true;
     this.menuType = type;
+    // Tell touch controls to disable joystick/action buttons
+    if (this.touchControls) {
+      this.touchControls.setMenuOpen(true);
+    }
   }
 
   closeMenu() {
     this.showMenu = false;
     this.menuType = null;
     this.selectedUpgrade = null;
+    // Re-enable touch controls
+    if (this.touchControls) {
+      this.touchControls.setMenuOpen(false);
+    }
   }
 
   handleMenuInput(input, touchControls = null) {
