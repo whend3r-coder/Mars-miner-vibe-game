@@ -27,6 +27,11 @@ export class SurfaceBase {
     // Store touch controls reference
     this.touchControls = touchControls;
 
+    // Auto-refuel when at surface (FREE!)
+    if (atSurface && this.player.fuel < this.player.maxFuel) {
+      this.player.fuel = this.player.maxFuel;
+    }
+
     // Show/hide surface button on touch controls
     if (touchControls) {
       touchControls.setSurfaceButtonVisible(atSurface && !this.showMenu, () => {
@@ -82,6 +87,12 @@ export class SurfaceBase {
       this.handleTouchMenuInput(touchControls);
     }
 
+    // Handle mouse clicks
+    const mouseClick = input.getMouseClick();
+    if (mouseClick) {
+      this.handleMouseMenuInput(mouseClick);
+    }
+
     // Number key selections for main menu
     if (this.menuType === 'main') {
       if (input.isKeyPressed('Digit1')) {
@@ -94,6 +105,8 @@ export class SurfaceBase {
         this.openMenu('upgrade');
       } else if (input.isKeyPressed('Digit5')) {
         this.saveGame();
+      } else if (input.isKeyPressed('Digit6')) {
+        this.loadGame();
       }
     }
 
@@ -113,6 +126,27 @@ export class SurfaceBase {
         this.openMenu('main');
       }
     }
+  }
+
+  handleMouseMenuInput(mouseClick) {
+    // Mouse coordinates are already in canvas space
+    const clickX = mouseClick.x;
+    const clickY = mouseClick.y;
+
+    // Get menu layout from renderer
+    if (!this.menuLayout) {
+      console.warn('Menu layout not set! Mouse detection will not work.');
+      return;
+    }
+    const { centerX, centerY, scale } = this.menuLayout;
+
+    console.log('Mouse click detected:', {
+      click: { x: clickX, y: clickY },
+      menuCenter: { x: centerX, y: centerY },
+      scale
+    });
+
+    this.processMenuClick(clickX, clickY, centerX, centerY, scale);
   }
 
   handleTouchMenuInput(touchControls) {
@@ -150,13 +184,18 @@ export class SurfaceBase {
       scale
     });
 
-    if (this.menuType === 'main') {
-      // Check close button (larger button at top right) - MUST match renderer
-      const closeBtnSize = 40 * scale;
-      const closeBtnX = centerX + 80 * scale;
-      const closeBtnY = centerY - 70 * scale;
+    this.processMenuClick(touchX, touchY, centerX, centerY, scale);
+  }
 
-      if (this.isPointInRect(touchX, touchY, closeBtnX, closeBtnY, closeBtnSize, closeBtnSize)) {
+  processMenuClick(clickX, clickY, centerX, centerY, scale) {
+
+    if (this.menuType === 'main') {
+      // Check close button - MUST match renderer
+      const closeBtnSize = 22 * scale;
+      const closeBtnX = centerX + 50 * scale;
+      const closeBtnY = centerY - 50 * scale;
+
+      if (this.isPointInRect(clickX, clickY, closeBtnX, closeBtnY, closeBtnSize, closeBtnSize)) {
         console.log('Close button clicked!');
         if (this.renderer) {
           this.renderer.debugInfo.push('ACTION: Close button clicked');
@@ -166,10 +205,10 @@ export class SurfaceBase {
       }
 
       // Check main menu option buttons - MUST match renderer layout
-      const buttonWidth = 160 * scale;
-      const buttonHeight = 24 * scale;
-      const buttonSpacing = 6 * scale;
-      const startY = centerY - 18 * scale;
+      const buttonWidth = 85 * scale;
+      const buttonHeight = 14 * scale;
+      const buttonSpacing = 3 * scale;
+      const startY = centerY - 15 * scale;
 
       const options = [
         { action: () => this.refuelFull(), name: 'Refuel' },
@@ -177,6 +216,7 @@ export class SurfaceBase {
         { action: () => this.repairFull(), name: 'Repair' },
         { action: () => this.openMenu('upgrade'), name: 'Upgrades' },
         { action: () => this.saveGame(), name: 'Save' },
+        { action: () => this.loadGame(), name: 'Load' },
       ];
 
       for (let i = 0; i < options.length; i++) {
@@ -184,7 +224,7 @@ export class SurfaceBase {
         const btnX = centerX - buttonWidth / 2;
         const btnY = y - buttonHeight / 2;
 
-        if (this.isPointInRect(touchX, touchY, btnX, btnY, buttonWidth, buttonHeight)) {
+        if (this.isPointInRect(clickX, clickY, btnX, btnY, buttonWidth, buttonHeight)) {
           console.log(`Menu option clicked: ${options[i].name}`);
           if (this.renderer) {
             this.renderer.debugInfo.push(`ACTION: ${options[i].name} clicked`);
@@ -199,12 +239,12 @@ export class SurfaceBase {
       }
     } else if (this.menuType === 'upgrade') {
       // Check back button - MUST match renderer
-      const backBtnWidth = 100 * scale;
-      const backBtnHeight = 35 * scale;
+      const backBtnWidth = 55 * scale;
+      const backBtnHeight = 18 * scale;
       const backBtnX = centerX - backBtnWidth / 2;
-      const backBtnY = centerY + 48 * scale;
+      const backBtnY = centerY + 30 * scale;
 
-      if (this.isPointInRect(touchX, touchY, backBtnX, backBtnY, backBtnWidth, backBtnHeight)) {
+      if (this.isPointInRect(clickX, clickY, backBtnX, backBtnY, backBtnWidth, backBtnHeight)) {
         if (this.renderer) {
           this.renderer.debugInfo.push('ACTION: Back button clicked');
         }
@@ -213,10 +253,10 @@ export class SurfaceBase {
       }
 
       // Check upgrade option buttons - MUST match renderer layout
-      const buttonWidth = 180 * scale;
-      const buttonHeight = 28 * scale;
-      const buttonSpacing = 4 * scale;
-      const startY = centerY - 25 * scale;
+      const buttonWidth = 95 * scale;
+      const buttonHeight = 14 * scale;
+      const buttonSpacing = 2 * scale;
+      const startY = centerY - 20 * scale;
 
       const upgradeTypes = ['drillSpeed', 'drillPower', 'fuelTank', 'cargoBay', 'hull'];
 
@@ -225,7 +265,7 @@ export class SurfaceBase {
         const btnX = centerX - buttonWidth / 2;
         const btnY = y - buttonHeight / 2;
 
-        if (this.isPointInRect(touchX, touchY, btnX, btnY, buttonWidth, buttonHeight)) {
+        if (this.isPointInRect(clickX, clickY, btnX, btnY, buttonWidth, buttonHeight)) {
           if (this.renderer) {
             this.renderer.debugInfo.push(`ACTION: Upgrade ${upgradeTypes[i]} clicked`);
           }
@@ -244,11 +284,23 @@ export class SurfaceBase {
   }
 
   refuelFull() {
-    const result = this.economy.refuel();
-    if (result.success) {
-      console.log(`Refueled ${result.amount.toFixed(1)} units for $${result.cost}`);
+    // Fuel is now FREE and automatic at base!
+    const needed = this.player.maxFuel - this.player.fuel;
+    if (needed > 0) {
+      this.player.fuel = this.player.maxFuel;
+      console.log(`Refueled ${needed.toFixed(1)} units for FREE!`);
     } else {
-      console.log(`Not enough money! Need $${result.cost}`);
+      console.log('Fuel already full!');
+    }
+  }
+
+  loadGame() {
+    if (this.game && this.game.loadGame) {
+      this.game.loadGame();
+      console.log('Game loaded!');
+      this.closeMenu();
+    } else {
+      console.warn('Cannot load: game instance not available');
     }
   }
 

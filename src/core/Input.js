@@ -1,12 +1,50 @@
 export class Input {
-  constructor(touchControls = null) {
+  constructor(touchControls = null, canvas = null) {
     this.keys = {};
     this.keysPressed = {}; // For single-press detection
     this.keysReleased = {}; // For release detection
     this.touchControls = touchControls;
+    this.canvas = canvas;
+
+    // Mouse state
+    this.mouse = {
+      x: 0,
+      y: 0,
+      clicked: false,
+      justClicked: false
+    };
 
     window.addEventListener('keydown', (e) => this.onKeyDown(e));
     window.addEventListener('keyup', (e) => this.onKeyUp(e));
+
+    // Add mouse event listeners if canvas is provided
+    if (canvas) {
+      canvas.addEventListener('click', (e) => this.onMouseClick(e));
+      canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+    }
+  }
+
+  onMouseClick(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+
+    this.mouse.x = (e.clientX - rect.left) * scaleX;
+    this.mouse.y = (e.clientY - rect.top) * scaleY;
+    this.mouse.justClicked = true;
+  }
+
+  onMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+
+    this.mouse.x = (e.clientX - rect.left) * scaleX;
+    this.mouse.y = (e.clientY - rect.top) * scaleY;
+  }
+
+  getMouseClick() {
+    return this.mouse.justClicked ? { x: this.mouse.x, y: this.mouse.y } : null;
   }
 
   onKeyDown(e) {
@@ -37,6 +75,7 @@ export class Input {
   update() {
     this.keysPressed = {};
     this.keysReleased = {};
+    this.mouse.justClicked = false;
   }
 
   // Movement helpers

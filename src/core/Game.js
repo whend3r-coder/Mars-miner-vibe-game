@@ -16,7 +16,7 @@ export class Game {
 
     // Core systems
     this.touchControls = new TouchControls(canvas);
-    this.input = new Input(this.touchControls);
+    this.input = new Input(this.touchControls, canvas);
     this.renderer = new Renderer(canvas);
 
     // Game state

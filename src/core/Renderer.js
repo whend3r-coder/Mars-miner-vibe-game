@@ -28,6 +28,9 @@ export class Renderer {
   loadSprites() {
     const spritesToLoad = {
       player: '/assets/sprites/player.png',
+      playerIdle: '/assets/sprites/aligned_idle.png',
+      playerDrill: '/assets/sprites/aligned_drill.png',
+      playerJetpack: '/assets/sprites/aligned_jetpack.png',
       fuelstation: '/assets/sprites/fuelstation.png',
       shop: '/assets/sprites/shop.png',
       repairshop: '/assets/sprites/repairshop.png',
@@ -86,8 +89,9 @@ export class Renderer {
     // Calculate scale factor for game world rendering
     this.scale = this.canvas.width / CONFIG.INTERNAL_WIDTH;
 
-    // Disable image smoothing for pixel art
-    this.ctx.imageSmoothingEnabled = false;
+    // Enable image smoothing for better sprite scaling (sprites are high-res)
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = 'high';
   }
 
   updateCamera(player) {
@@ -185,26 +189,48 @@ export class Renderer {
     const playerScreenX = player.x * CONFIG.TILE_SIZE - this.cameraX;
     const playerScreenY = player.y * CONFIG.TILE_SIZE - this.cameraY;
 
-    if (this.spritesLoaded && this.sprites.player.complete) {
-      // Draw player sprite
-      const playerWidth = player.width * CONFIG.TILE_SIZE;
-      const playerHeight = player.height * CONFIG.TILE_SIZE;
+    if (this.spritesLoaded) {
+      // Choose sprite and config based on player state
+      let playerSprite, spriteConfig;
+      if (player.flying) {
+        playerSprite = this.sprites.playerJetpack;
+        spriteConfig = CONFIG.ROBOT_SPRITES.jetpack;
+      } else if (player.drilling) {
+        playerSprite = this.sprites.playerDrill;
+        spriteConfig = CONFIG.ROBOT_SPRITES.drill;
+      } else {
+        playerSprite = this.sprites.playerIdle;
+        spriteConfig = CONFIG.ROBOT_SPRITES.idle;
+      }
 
-      this.ctx.drawImage(
-        this.sprites.player,
-        playerScreenX,
-        playerScreenY,
-        playerWidth,
-        playerHeight
-      );
+      // Draw player sprite with proper alignment using config
+      if (playerSprite && playerSprite.complete && spriteConfig) {
+        const spriteWidth = spriteConfig.width * CONFIG.TILE_SIZE;
+        const spriteHeight = spriteConfig.height * CONFIG.TILE_SIZE;
+        const offsetX = spriteConfig.offsetX * CONFIG.TILE_SIZE;
+        const offsetY = spriteConfig.offsetY * CONFIG.TILE_SIZE;
 
-      // Add glow effect when drilling
-      if (player.drilling) {
-        this.ctx.save();
-        this.ctx.globalAlpha = 0.3;
-        this.ctx.fillStyle = '#FF6600';
-        this.ctx.fillRect(playerScreenX, playerScreenY, playerWidth, playerHeight);
-        this.ctx.restore();
+        this.ctx.drawImage(
+          playerSprite,
+          playerScreenX + offsetX,
+          playerScreenY + offsetY,
+          spriteWidth,
+          spriteHeight
+        );
+      } else {
+        // Fallback to basic player sprite if state sprites not loaded
+        if (this.sprites.player && this.sprites.player.complete) {
+          const playerWidth = player.width * CONFIG.TILE_SIZE;
+          const playerHeight = player.height * CONFIG.TILE_SIZE;
+
+          this.ctx.drawImage(
+            this.sprites.player,
+            playerScreenX,
+            playerScreenY,
+            playerWidth,
+            playerHeight
+          );
+        }
       }
     } else {
       // Fallback to colored rectangle
@@ -305,10 +331,11 @@ export class Renderer {
 
   renderSurfaceBuildings(world) {
     // Draw building sprites at the surface (sitting on ground at y=0)
+    // Using 3.5x3.5 tiles for balanced sprite quality
     const buildings = [
-      { x: 45, y: 0, width: 3, height: 3, sprite: 'fuelstation', name: 'FUEL', color: '#00AA00', icon: 'F' },
-      { x: 49, y: 0, width: 3, height: 3, sprite: 'shop', name: 'SHOP', color: '#FFAA00', icon: '$' },
-      { x: 53, y: 0, width: 3, height: 3, sprite: 'repairshop', name: 'REPAIR', color: '#00AAFF', icon: '+' },
+      { x: 45, y: -0.5, width: 3.5, height: 3.5, sprite: 'fuelstation', name: 'FUEL', color: '#00AA00', icon: 'F' },
+      { x: 49, y: -0.5, width: 3.5, height: 3.5, sprite: 'shop', name: 'SHOP', color: '#FFAA00', icon: '$' },
+      { x: 53, y: -0.5, width: 3.5, height: 3.5, sprite: 'repairshop', name: 'REPAIR', color: '#00AAFF', icon: '+' },
     ];
 
     buildings.forEach(building => {
@@ -421,33 +448,34 @@ export class Renderer {
 
     // Title
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = `bold ${Math.floor(20 * scale)}px monospace`;
+    this.ctx.font = `bold ${Math.floor(14 * scale)}px monospace`;
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('SURFACE BASE', centerX, centerY - 60 * scale);
+    this.ctx.fillText('SURFACE BASE', centerX, centerY - 50 * scale);
 
     // Player stats
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.font = `${Math.floor(14 * scale)}px monospace`;
-    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 40 * scale);
+    this.ctx.font = `${Math.floor(10 * scale)}px monospace`;
+    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 35 * scale);
 
-    // Menu options as BIG touch-friendly buttons
+    // Menu options as touch-friendly buttons
     const options = [
-      { text: `Refuel ($${economy.refuelCost})`, color: player.fuel < player.maxFuel ? '#00FF00' : '#666666' },
+      { text: `Refuel (FREE)`, color: player.fuel < player.maxFuel ? '#00FF00' : '#666666' },
       { text: `Sell Cargo ($${player.cargoValue})`, color: player.cargo.length > 0 ? '#FFD700' : '#666666' },
       { text: `Repair Hull ($${economy.repairCost})`, color: player.hull < player.maxHull ? '#00FFFF' : '#666666' },
       { text: 'Upgrades', color: '#FF00FF' },
       { text: 'Save Game', color: '#FFFFFF' },
+      { text: 'Load Game', color: '#FFFF00' },
     ];
 
-    // Draw buttons with backgrounds (MUCH larger for mobile!)
-    const buttonWidth = 160 * scale;
-    const buttonHeight = 24 * scale;
-    const buttonSpacing = 6 * scale;
-    const startY = centerY - 18 * scale;
+    // Draw compact buttons that fit any screen
+    const buttonWidth = 85 * scale;
+    const buttonHeight = 14 * scale;
+    const buttonSpacing = 3 * scale;
+    const startY = centerY - 15 * scale;
 
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
-    this.ctx.font = `bold ${Math.floor(14 * scale)}px monospace`;
+    this.ctx.font = `bold ${Math.floor(8 * scale)}px monospace`;
 
     options.forEach((option, index) => {
       const y = startY + index * (buttonHeight + buttonSpacing);
@@ -459,7 +487,7 @@ export class Renderer {
 
       // Button border
       this.ctx.strokeStyle = option.color;
-      this.ctx.lineWidth = 2 * scale;
+      this.ctx.lineWidth = 1 * scale;
       this.ctx.strokeRect(btnX, y - buttonHeight / 2, buttonWidth, buttonHeight);
 
       // Button text
@@ -469,18 +497,18 @@ export class Renderer {
 
     // Close button for touch controls
     if (touchControls && touchControls.enabled) {
-      const closeBtnSize = 40 * scale;
-      const closeBtnX = centerX + 80 * scale;
-      const closeBtnY = centerY - 70 * scale;
+      const closeBtnSize = 22 * scale;
+      const closeBtnX = centerX + 50 * scale;
+      const closeBtnY = centerY - 50 * scale;
 
       this.ctx.fillStyle = 'rgba(200, 0, 0, 0.9)';
       this.ctx.fillRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize);
       this.ctx.strokeStyle = '#FFFFFF';
-      this.ctx.lineWidth = 3 * scale;
+      this.ctx.lineWidth = 1.5 * scale;
       this.ctx.strokeRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize);
 
       this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.font = `bold ${Math.floor(24 * scale)}px monospace`;
+      this.ctx.font = `bold ${Math.floor(14 * scale)}px monospace`;
       this.ctx.fillText('X', closeBtnX + closeBtnSize / 2, closeBtnY + closeBtnSize / 2);
     } else {
       // Instructions for keyboard
@@ -495,16 +523,16 @@ export class Renderer {
 
     // Title
     this.ctx.fillStyle = '#FF00FF';
-    this.ctx.font = `bold ${Math.floor(20 * scale)}px monospace`;
+    this.ctx.font = `bold ${Math.floor(14 * scale)}px monospace`;
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('UPGRADES', centerX, centerY - 60 * scale);
+    this.ctx.fillText('UPGRADES', centerX, centerY - 50 * scale);
 
     // Money
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = `${Math.floor(14 * scale)}px monospace`;
-    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 42 * scale);
+    this.ctx.font = `${Math.floor(10 * scale)}px monospace`;
+    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 35 * scale);
 
-    // Upgrade options as BIG touch-friendly buttons
+    // Upgrade options as touch-friendly buttons
     const upgrades = economy.upgrades;
     const upgradeKeys = [
       { type: 'drillSpeed', name: 'Drill Speed' },
@@ -514,11 +542,11 @@ export class Renderer {
       { type: 'hull', name: 'Hull Armor' },
     ];
 
-    // Draw buttons with backgrounds
-    const buttonWidth = 180 * scale;
-    const buttonHeight = 28 * scale;
-    const buttonSpacing = 4 * scale;
-    const startY = centerY - 25 * scale;
+    // Draw compact buttons that fit any screen
+    const buttonWidth = 95 * scale;
+    const buttonHeight = 14 * scale;
+    const buttonSpacing = 2 * scale;
+    const startY = centerY - 20 * scale;
 
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
@@ -544,30 +572,30 @@ export class Renderer {
 
       // Button border
       this.ctx.strokeStyle = color;
-      this.ctx.lineWidth = 2 * scale;
+      this.ctx.lineWidth = 1 * scale;
       this.ctx.strokeRect(btnX, y - buttonHeight / 2, buttonWidth, buttonHeight);
 
       // Button text
       this.ctx.fillStyle = color;
-      this.ctx.font = `bold ${Math.floor(13 * scale)}px monospace`;
+      this.ctx.font = `bold ${Math.floor(7 * scale)}px monospace`;
       this.ctx.fillText(text, centerX, y);
     });
 
     // Back button for touch controls
     if (touchControls && touchControls.enabled) {
-      const backBtnWidth = 100 * scale;
-      const backBtnHeight = 35 * scale;
+      const backBtnWidth = 55 * scale;
+      const backBtnHeight = 18 * scale;
       const backBtnX = centerX - backBtnWidth / 2;
-      const backBtnY = centerY + 48 * scale;
+      const backBtnY = centerY + 30 * scale;
 
       this.ctx.fillStyle = 'rgba(255, 102, 0, 0.9)';
       this.ctx.fillRect(backBtnX, backBtnY, backBtnWidth, backBtnHeight);
       this.ctx.strokeStyle = '#FFFFFF';
-      this.ctx.lineWidth = 3 * scale;
+      this.ctx.lineWidth = 1.5 * scale;
       this.ctx.strokeRect(backBtnX, backBtnY, backBtnWidth, backBtnHeight);
 
       this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.font = `bold ${Math.floor(16 * scale)}px monospace`;
+      this.ctx.font = `bold ${Math.floor(9 * scale)}px monospace`;
       this.ctx.fillText('BACK', centerX, backBtnY + backBtnHeight / 2);
     } else {
       // Instructions for keyboard

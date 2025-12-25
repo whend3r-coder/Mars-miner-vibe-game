@@ -35,4 +35,35 @@ export const CONFIG = {
 
   // Drilling
   DRILL_RANGE: 1.5,        // tiles - how far player can reach to drill
+
+  // Robot sprite configuration (using aligned sprites)
+  // All sprites are pre-aligned, so they use the SAME size/position
+  // Drill and jetpack extend beyond the base robot body naturally
+  ROBOT_SPRITES: {
+    idle: {
+      offsetX: 0,
+      offsetY: -0.1,    // Positive = shift DOWN so feet touch ground
+      width: 1.0,      // Visual sprite width
+      height: 1.6,     // Visual sprite height
+      // Collision box (smaller than visual for gameplay)
+      collisionWidth: 0.7,
+      collisionHeight: 0.7
+    },
+    drill: {
+      offsetX: 0,
+      offsetY: -0.1,
+      width: 1.0,
+      height: 1.6,
+      collisionWidth: 0.7,
+      collisionHeight: 0.7
+    },
+    jetpack: {
+      offsetX: 0,
+      offsetY: -0.1,
+      width: 1.0,
+      height: 1.6,
+      collisionWidth: 0.7,
+      collisionHeight: 0.7
+    }
+  }
 };

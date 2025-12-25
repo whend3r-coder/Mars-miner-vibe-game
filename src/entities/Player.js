@@ -10,9 +10,9 @@ export class Player {
     this.vx = 0;
     this.vy = 0;
 
-    // Size (in tiles)
-    this.width = 0.8;
-    this.height = 0.9;
+    // Size (in tiles) - Use collision box, not visual sprite size
+    this.width = CONFIG.ROBOT_SPRITES.idle.collisionWidth;
+    this.height = CONFIG.ROBOT_SPRITES.idle.collisionHeight;
 
     // Resources
     this.fuel = CONFIG.STARTING_FUEL;
