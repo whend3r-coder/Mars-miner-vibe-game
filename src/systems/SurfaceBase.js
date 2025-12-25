@@ -104,7 +104,10 @@ export class SurfaceBase {
     if (!touch || !touch.justReleased) return;
 
     // Get menu layout from renderer (screen coordinates)
-    if (!this.menuLayout) return;
+    if (!this.menuLayout) {
+      console.warn('Menu layout not set! Touch detection will not work.');
+      return;
+    }
     const { centerX, centerY, scale } = this.menuLayout;
 
     // Convert touch from canvas to screen coordinates
@@ -112,29 +115,43 @@ export class SurfaceBase {
     const touchX = touch.x * canvasScale;
     const touchY = touch.y * canvasScale;
 
+    console.log('Touch detected:', {
+      canvasTouch: { x: touch.x, y: touch.y },
+      screenTouch: { x: touchX, y: touchY },
+      menuCenter: { x: centerX, y: centerY },
+      scale, canvasScale
+    });
+
     if (this.menuType === 'main') {
       // Check close button (X button at top right of menu)
-      if (this.isPointInRect(touchX, touchY, centerX + 50 * scale, centerY - 55 * scale, 20 * scale, 10 * scale)) {
+      const closeBtn = { x: centerX + 50 * scale, y: centerY - 55 * scale, w: 20 * scale, h: 10 * scale };
+      console.log('Close button hitbox:', closeBtn);
+
+      if (this.isPointInRect(touchX, touchY, closeBtn.x, closeBtn.y, closeBtn.w, closeBtn.h)) {
+        console.log('Close button clicked!');
         this.closeMenu();
         return;
       }
 
       // Check main menu option buttons (larger hitboxes for touch)
       const options = [
-        { y: centerY - 15 * scale, action: () => this.refuelFull() },
-        { y: centerY - 3 * scale, action: () => this.sellAll() },
-        { y: centerY + 9 * scale, action: () => this.repairFull() },
-        { y: centerY + 21 * scale, action: () => this.openMenu('upgrade') },
-        { y: centerY + 33 * scale, action: () => this.saveGame() },
+        { y: centerY - 15 * scale, action: () => this.refuelFull(), name: 'Refuel' },
+        { y: centerY - 3 * scale, action: () => this.sellAll(), name: 'Sell' },
+        { y: centerY + 9 * scale, action: () => this.repairFull(), name: 'Repair' },
+        { y: centerY + 21 * scale, action: () => this.openMenu('upgrade'), name: 'Upgrades' },
+        { y: centerY + 33 * scale, action: () => this.saveGame(), name: 'Save' },
       ];
 
       for (const option of options) {
         // Larger hitbox: 140 wide, 16 tall, centered on text
-        if (this.isPointInRect(touchX, touchY, centerX - 70 * scale, option.y - 10 * scale, 140 * scale, 16 * scale)) {
+        const hitbox = { x: centerX - 70 * scale, y: option.y - 10 * scale, w: 140 * scale, h: 16 * scale };
+        if (this.isPointInRect(touchX, touchY, hitbox.x, hitbox.y, hitbox.w, hitbox.h)) {
+          console.log(`Menu option clicked: ${option.name}`, hitbox);
           option.action();
           return;
         }
       }
+      console.log('No menu option clicked');
     } else if (this.menuType === 'upgrade') {
       // Check back button (larger hitbox)
       if (this.isPointInRect(touchX, touchY, centerX - 30 * scale, centerY + 40 * scale, 60 * scale, 16 * scale)) {
