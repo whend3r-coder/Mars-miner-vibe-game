@@ -103,51 +103,57 @@ export class SurfaceBase {
     const touch = touchControls.getLastTouch();
     if (!touch || !touch.justReleased) return;
 
-    const centerX = CONFIG.INTERNAL_WIDTH / 2;
-    const centerY = CONFIG.INTERNAL_HEIGHT / 2;
+    // Get menu layout from renderer (screen coordinates)
+    if (!this.menuLayout) return;
+    const { centerX, centerY, scale } = this.menuLayout;
+
+    // Convert touch from canvas to screen coordinates
+    const canvasScale = touchControls.canvas.width / CONFIG.INTERNAL_WIDTH;
+    const touchX = touch.x * canvasScale;
+    const touchY = touch.y * canvasScale;
 
     if (this.menuType === 'main') {
       // Check close button (X button at top right of menu)
-      if (this.isPointInRect(touch.x, touch.y, centerX + 50, centerY - 55, 20, 10)) {
+      if (this.isPointInRect(touchX, touchY, centerX + 50 * scale, centerY - 55 * scale, 20 * scale, 10 * scale)) {
         this.closeMenu();
         return;
       }
 
       // Check main menu option buttons (larger hitboxes for touch)
       const options = [
-        { y: centerY - 15, action: () => this.refuelFull() },
-        { y: centerY - 3, action: () => this.sellAll() },
-        { y: centerY + 9, action: () => this.repairFull() },
-        { y: centerY + 21, action: () => this.openMenu('upgrade') },
-        { y: centerY + 33, action: () => this.saveGame() },
+        { y: centerY - 15 * scale, action: () => this.refuelFull() },
+        { y: centerY - 3 * scale, action: () => this.sellAll() },
+        { y: centerY + 9 * scale, action: () => this.repairFull() },
+        { y: centerY + 21 * scale, action: () => this.openMenu('upgrade') },
+        { y: centerY + 33 * scale, action: () => this.saveGame() },
       ];
 
       for (const option of options) {
         // Larger hitbox: 140 wide, 16 tall, centered on text
-        if (this.isPointInRect(touch.x, touch.y, centerX - 70, option.y - 10, 140, 16)) {
+        if (this.isPointInRect(touchX, touchY, centerX - 70 * scale, option.y - 10 * scale, 140 * scale, 16 * scale)) {
           option.action();
           return;
         }
       }
     } else if (this.menuType === 'upgrade') {
       // Check back button (larger hitbox)
-      if (this.isPointInRect(touch.x, touch.y, centerX - 30, centerY + 40, 60, 16)) {
+      if (this.isPointInRect(touchX, touchY, centerX - 30 * scale, centerY + 40 * scale, 60 * scale, 16 * scale)) {
         this.openMenu('main');
         return;
       }
 
       // Check upgrade option buttons (larger hitboxes)
       const upgrades = [
-        { y: centerY - 25, type: 'drillSpeed' },
-        { y: centerY - 11, type: 'drillPower' },
-        { y: centerY + 3, type: 'fuelTank' },
-        { y: centerY + 17, type: 'cargoBay' },
-        { y: centerY + 31, type: 'hull' },
+        { y: centerY - 25 * scale, type: 'drillSpeed' },
+        { y: centerY - 11 * scale, type: 'drillPower' },
+        { y: centerY + 3 * scale, type: 'fuelTank' },
+        { y: centerY + 17 * scale, type: 'cargoBay' },
+        { y: centerY + 31 * scale, type: 'hull' },
       ];
 
       for (const upgrade of upgrades) {
         // Larger hitbox: 160 wide, 16 tall
-        if (this.isPointInRect(touch.x, touch.y, centerX - 80, upgrade.y - 8, 160, 16)) {
+        if (this.isPointInRect(touchX, touchY, centerX - 80 * scale, upgrade.y - 8 * scale, 160 * scale, 16 * scale)) {
           this.buyUpgrade(upgrade.type);
           return;
         }

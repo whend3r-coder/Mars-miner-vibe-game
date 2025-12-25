@@ -349,54 +349,70 @@ export class Renderer {
   renderSurfaceMenu(surfaceBase, touchControls) {
     const menuState = surfaceBase.getMenuState();
 
-    // Only show keyboard hint if NOT using touch controls
     if (!menuState && surfaceBase.isAtSurface() && touchControls && !touchControls.enabled) {
+      // Keyboard hint - render at high resolution
       this.ctx.save();
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const scale = this.canvas.width / CONFIG.INTERNAL_WIDTH;
+
+      const centerX = this.canvas.width / 2;
+      const centerY = this.canvas.height - 60 * scale;
+
       this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      this.ctx.fillRect(CONFIG.INTERNAL_WIDTH / 2 - 100, CONFIG.INTERNAL_HEIGHT - 60, 200, 50);
+      this.ctx.fillRect(centerX - 100 * scale, centerY - 25 * scale, 200 * scale, 50 * scale);
+
       this.ctx.fillStyle = '#FFD700';
-      this.ctx.font = '14px monospace';
+      this.ctx.font = `bold ${Math.floor(14 * scale)}px monospace`;
       this.ctx.textAlign = 'center';
-      this.ctx.fillText('SURFACE BASE', CONFIG.INTERNAL_WIDTH / 2, CONFIG.INTERNAL_HEIGHT - 35);
-      this.ctx.font = '12px monospace';
+      this.ctx.fillText('SURFACE BASE', centerX, centerY);
+
+      this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
       this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.fillText('Press E or SPACE to enter', CONFIG.INTERNAL_WIDTH / 2, CONFIG.INTERNAL_HEIGHT - 20);
+      this.ctx.fillText('Press E or SPACE to enter', centerX, centerY + 15 * scale);
+
       this.ctx.restore();
       return;
     }
 
     if (!menuState) return;
 
-    // Draw overlay
+    // Draw menu at high resolution for crisp text
     this.ctx.save();
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-    this.ctx.fillRect(0, 0, CONFIG.INTERNAL_WIDTH, CONFIG.INTERNAL_HEIGHT);
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const scale = this.canvas.width / CONFIG.INTERNAL_WIDTH;
 
-    const centerX = CONFIG.INTERNAL_WIDTH / 2;
-    const centerY = CONFIG.INTERNAL_HEIGHT / 2;
+    // Draw overlay
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
+
+    // Store menu layout for touch detection
+    surfaceBase.menuLayout = { centerX, centerY, scale };
 
     if (menuState.type === 'main') {
-      this.renderMainMenu(menuState, centerX, centerY, touchControls);
+      this.renderMainMenu(menuState, centerX, centerY, scale, touchControls);
     } else if (menuState.type === 'upgrade') {
-      this.renderUpgradeMenu(menuState, centerX, centerY, touchControls);
+      this.renderUpgradeMenu(menuState, centerX, centerY, scale, touchControls);
     }
 
     this.ctx.restore();
   }
 
-  renderMainMenu(menuState, centerX, centerY, touchControls = null) {
+  renderMainMenu(menuState, centerX, centerY, scale, touchControls = null) {
     const { player, economy } = menuState;
 
     // Title
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = 'bold 16px monospace';
+    this.ctx.font = `bold ${Math.floor(16 * scale)}px monospace`;
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('SURFACE BASE', centerX, centerY - 50);
+    this.ctx.fillText('SURFACE BASE', centerX, centerY - 50 * scale);
 
     // Player stats
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.font = '12px monospace';
-    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 35);
+    this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
+    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 35 * scale);
 
     // Menu options
     const options = [
@@ -408,44 +424,44 @@ export class Renderer {
     ];
 
     this.ctx.textAlign = 'left';
-    this.ctx.font = '14px monospace';
+    this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
 
     options.forEach((option, index) => {
-      const y = centerY - 15 + index * 12;
+      const y = centerY - 15 * scale + index * 12 * scale;
       this.ctx.fillStyle = option.color;
-      this.ctx.fillText(`[${option.key}] ${option.text}`, centerX - 60, y);
+      this.ctx.fillText(`[${option.key}] ${option.text}`, centerX - 60 * scale, y);
     });
 
     // Close button for touch controls
     if (touchControls && touchControls.enabled) {
       this.ctx.fillStyle = '#FF0000';
-      this.ctx.fillRect(centerX + 50, centerY - 55, 20, 10);
+      this.ctx.fillRect(centerX + 50 * scale, centerY - 55 * scale, 20 * scale, 10 * scale);
       this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.font = '14px monospace';
+      this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
       this.ctx.textAlign = 'center';
-      this.ctx.fillText('X', centerX + 60, centerY - 48);
+      this.ctx.fillText('X', centerX + 60 * scale, centerY - 48 * scale);
     } else {
       // Instructions for keyboard
       this.ctx.fillStyle = '#888888';
-      this.ctx.font = '10px monospace';
+      this.ctx.font = `${Math.floor(10 * scale)}px monospace`;
       this.ctx.textAlign = 'center';
-      this.ctx.fillText('Press ESC to close', centerX, centerY + 40);
+      this.ctx.fillText('Press ESC to close', centerX, centerY + 40 * scale);
     }
   }
 
-  renderUpgradeMenu(menuState, centerX, centerY, touchControls = null) {
+  renderUpgradeMenu(menuState, centerX, centerY, scale, touchControls = null) {
     const { player, economy } = menuState;
 
     // Title
     this.ctx.fillStyle = '#FF00FF';
-    this.ctx.font = 'bold 16px monospace';
+    this.ctx.font = `bold ${Math.floor(16 * scale)}px monospace`;
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('UPGRADES', centerX, centerY - 50);
+    this.ctx.fillText('UPGRADES', centerX, centerY - 50 * scale);
 
     // Money
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = '12px monospace';
-    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 40);
+    this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
+    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 40 * scale);
 
     // Upgrade options
     const upgrades = economy.upgrades;
@@ -458,46 +474,46 @@ export class Renderer {
     ];
 
     this.ctx.textAlign = 'left';
-    this.ctx.font = '12px monospace';
+    this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
 
     upgradeKeys.forEach((item, index) => {
       const upgrade = upgrades.find(u => u.type === item.type);
-      const y = centerY - 25 + index * 14;
+      const y = centerY - 25 * scale + index * 14 * scale;
 
       if (upgrade.isMaxed) {
         this.ctx.fillStyle = '#666666';
-        this.ctx.fillText(`[${item.key}] ${item.name} - MAX`, centerX - 70, y);
+        this.ctx.fillText(`[${item.key}] ${item.name} - MAX`, centerX - 70 * scale, y);
       } else {
         const canAfford = player.money >= upgrade.nextCost;
         this.ctx.fillStyle = canAfford ? '#00FF00' : '#FF6666';
         this.ctx.fillText(
           `[${item.key}] ${item.name} Lv${upgrade.currentLevel + 1} - $${upgrade.nextCost}`,
-          centerX - 70,
+          centerX - 70 * scale,
           y
         );
 
         // Description
         this.ctx.fillStyle = '#AAAAAA';
-        this.ctx.font = '10px monospace';
-        this.ctx.fillText(upgrade.description, centerX - 68, y + 6);
-        this.ctx.font = '12px monospace';
+        this.ctx.font = `${Math.floor(10 * scale)}px monospace`;
+        this.ctx.fillText(upgrade.description, centerX - 68 * scale, y + 6 * scale);
+        this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
       }
     });
 
     // Back button for touch controls
     if (touchControls && touchControls.enabled) {
       this.ctx.fillStyle = '#FF6600';
-      this.ctx.fillRect(centerX - 20, centerY + 45, 40, 10);
+      this.ctx.fillRect(centerX - 20 * scale, centerY + 45 * scale, 40 * scale, 10 * scale);
       this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.font = '12px monospace';
+      this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
       this.ctx.textAlign = 'center';
-      this.ctx.fillText('BACK', centerX, centerY + 52);
+      this.ctx.fillText('BACK', centerX, centerY + 52 * scale);
     } else {
       // Instructions for keyboard
       this.ctx.fillStyle = '#888888';
-      this.ctx.font = '10px monospace';
+      this.ctx.font = `${Math.floor(10 * scale)}px monospace`;
       this.ctx.textAlign = 'center';
-      this.ctx.fillText('Press B or ESC to go back', centerX, centerY + 50);
+      this.ctx.fillText('Press B or ESC to go back', centerX, centerY + 50 * scale);
     }
   }
 }
