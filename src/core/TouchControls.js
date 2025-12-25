@@ -227,7 +227,7 @@ export class TouchControls {
     // Draw action button indicator
     if (this.actionButton.active) {
       ctx.save();
-      ctx.fillStyle = 'rgba(255, 100, 0, 0.3)';
+      ctx.fillStyle = 'rgba(255, 100, 0, 0.08)';
       ctx.fillRect(ctx.canvas.width / 2, 0, ctx.canvas.width / 2, ctx.canvas.height);
       ctx.restore();
     }

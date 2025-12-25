@@ -113,7 +113,7 @@ export class SurfaceBase {
         return;
       }
 
-      // Check main menu option buttons
+      // Check main menu option buttons (larger hitboxes for touch)
       const options = [
         { y: centerY - 15, action: () => this.refuelFull() },
         { y: centerY - 3, action: () => this.sellAll() },
@@ -123,19 +123,20 @@ export class SurfaceBase {
       ];
 
       for (const option of options) {
-        if (this.isPointInRect(touch.x, touch.y, centerX - 60, option.y - 8, 120, 10)) {
+        // Larger hitbox: 140 wide, 16 tall, centered on text
+        if (this.isPointInRect(touch.x, touch.y, centerX - 70, option.y - 10, 140, 16)) {
           option.action();
           return;
         }
       }
     } else if (this.menuType === 'upgrade') {
-      // Check back button
-      if (this.isPointInRect(touch.x, touch.y, centerX - 20, centerY + 45, 40, 10)) {
+      // Check back button (larger hitbox)
+      if (this.isPointInRect(touch.x, touch.y, centerX - 30, centerY + 40, 60, 16)) {
         this.openMenu('main');
         return;
       }
 
-      // Check upgrade option buttons
+      // Check upgrade option buttons (larger hitboxes)
       const upgrades = [
         { y: centerY - 25, type: 'drillSpeed' },
         { y: centerY - 11, type: 'drillPower' },
@@ -145,7 +146,8 @@ export class SurfaceBase {
       ];
 
       for (const upgrade of upgrades) {
-        if (this.isPointInRect(touch.x, touch.y, centerX - 70, upgrade.y - 6, 140, 12)) {
+        // Larger hitbox: 160 wide, 16 tall
+        if (this.isPointInRect(touch.x, touch.y, centerX - 80, upgrade.y - 8, 160, 16)) {
           this.buyUpgrade(upgrade.type);
           return;
         }

@@ -113,13 +113,12 @@ export class Renderer {
 
         // Use marsdirt texture for dirt and rock tiles (id 1 and 2)
         if (this.spritesLoaded && this.sprites.marsdirt && this.sprites.marsdirt.complete && (tile.id === 1 || tile.id === 2)) {
-          // Draw tiled marsdirt texture
-          const pattern = this.ctx.createPattern(this.sprites.marsdirt, 'repeat');
-          this.ctx.fillStyle = pattern;
-          this.ctx.save();
-          this.ctx.translate(screenX, screenY);
-          this.ctx.fillRect(0, 0, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
-          this.ctx.restore();
+          // Draw marsdirt texture scaled to tile size
+          this.ctx.drawImage(
+            this.sprites.marsdirt,
+            0, 0, this.sprites.marsdirt.width, this.sprites.marsdirt.height,
+            screenX, screenY, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE
+          );
 
           // Add slight color tint for rock vs dirt
           if (tile.id === 2) {
@@ -390,13 +389,13 @@ export class Renderer {
 
     // Title
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = 'bold 8px monospace';
+    this.ctx.font = 'bold 16px monospace';
     this.ctx.textAlign = 'center';
     this.ctx.fillText('SURFACE BASE', centerX, centerY - 50);
 
     // Player stats
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.font = '6px monospace';
+    this.ctx.font = '12px monospace';
     this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 35);
 
     // Menu options
@@ -409,7 +408,7 @@ export class Renderer {
     ];
 
     this.ctx.textAlign = 'left';
-    this.ctx.font = '7px monospace';
+    this.ctx.font = '14px monospace';
 
     options.forEach((option, index) => {
       const y = centerY - 15 + index * 12;
@@ -422,13 +421,13 @@ export class Renderer {
       this.ctx.fillStyle = '#FF0000';
       this.ctx.fillRect(centerX + 50, centerY - 55, 20, 10);
       this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.font = '7px monospace';
+      this.ctx.font = '14px monospace';
       this.ctx.textAlign = 'center';
       this.ctx.fillText('X', centerX + 60, centerY - 48);
     } else {
       // Instructions for keyboard
       this.ctx.fillStyle = '#888888';
-      this.ctx.font = '5px monospace';
+      this.ctx.font = '10px monospace';
       this.ctx.textAlign = 'center';
       this.ctx.fillText('Press ESC to close', centerX, centerY + 40);
     }
@@ -439,13 +438,13 @@ export class Renderer {
 
     // Title
     this.ctx.fillStyle = '#FF00FF';
-    this.ctx.font = 'bold 8px monospace';
+    this.ctx.font = 'bold 16px monospace';
     this.ctx.textAlign = 'center';
     this.ctx.fillText('UPGRADES', centerX, centerY - 50);
 
     // Money
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = '6px monospace';
+    this.ctx.font = '12px monospace';
     this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 40);
 
     // Upgrade options
@@ -459,7 +458,7 @@ export class Renderer {
     ];
 
     this.ctx.textAlign = 'left';
-    this.ctx.font = '6px monospace';
+    this.ctx.font = '12px monospace';
 
     upgradeKeys.forEach((item, index) => {
       const upgrade = upgrades.find(u => u.type === item.type);
@@ -479,9 +478,9 @@ export class Renderer {
 
         // Description
         this.ctx.fillStyle = '#AAAAAA';
-        this.ctx.font = '5px monospace';
+        this.ctx.font = '10px monospace';
         this.ctx.fillText(upgrade.description, centerX - 68, y + 6);
-        this.ctx.font = '6px monospace';
+        this.ctx.font = '12px monospace';
       }
     });
 
@@ -490,13 +489,13 @@ export class Renderer {
       this.ctx.fillStyle = '#FF6600';
       this.ctx.fillRect(centerX - 20, centerY + 45, 40, 10);
       this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.font = '6px monospace';
+      this.ctx.font = '12px monospace';
       this.ctx.textAlign = 'center';
       this.ctx.fillText('BACK', centerX, centerY + 52);
     } else {
       // Instructions for keyboard
       this.ctx.fillStyle = '#888888';
-      this.ctx.font = '5px monospace';
+      this.ctx.font = '10px monospace';
       this.ctx.textAlign = 'center';
       this.ctx.fillText('Press B or ESC to go back', centerX, centerY + 50);
     }
