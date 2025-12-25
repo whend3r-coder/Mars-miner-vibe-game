@@ -1,16 +1,17 @@
 import { CONFIG } from '../config.js';
 
 export class SurfaceBase {
-  constructor(player, economy) {
+  constructor(player, economy, game = null) {
     this.player = player;
     this.economy = economy;
+    this.game = game;
 
     // Surface zone is top few tiles
     this.surfaceDepth = 3; // tiles
 
     // UI state
     this.showMenu = false;
-    this.menuType = null; // 'fuel', 'sell', 'repair', 'upgrade'
+    this.menuType = null; // 'main', 'upgrade'
     this.selectedUpgrade = null;
   }
 
@@ -74,6 +75,8 @@ export class SurfaceBase {
         this.repairFull();
       } else if (input.isKeyPressed('Digit4')) {
         this.openMenu('upgrade');
+      } else if (input.isKeyPressed('Digit5')) {
+        this.saveGame();
       }
     }
 
@@ -116,6 +119,7 @@ export class SurfaceBase {
         { y: centerY - 3, action: () => this.sellAll() },
         { y: centerY + 9, action: () => this.repairFull() },
         { y: centerY + 21, action: () => this.openMenu('upgrade') },
+        { y: centerY + 33, action: () => this.saveGame() },
       ];
 
       for (const option of options) {
@@ -187,6 +191,15 @@ export class SurfaceBase {
       console.log(`Purchased ${info.name} Level ${result.level} for $${result.cost}!`);
     } else {
       console.log(`Cannot purchase: ${result.error}`);
+    }
+  }
+
+  saveGame() {
+    if (this.game && this.game.saveGame) {
+      this.game.saveGame();
+      console.log('Game saved manually!');
+    } else {
+      console.warn('Cannot save: game instance not available');
     }
   }
 

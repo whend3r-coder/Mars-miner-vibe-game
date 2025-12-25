@@ -405,6 +405,7 @@ export class Renderer {
       { key: '2', text: `Sell Cargo ($${player.cargoValue})`, color: player.cargo.length > 0 ? '#FFD700' : '#666666' },
       { key: '3', text: `Repair Hull ($${economy.repairCost})`, color: player.hull < player.maxHull ? '#00FFFF' : '#666666' },
       { key: '4', text: 'Upgrades', color: '#FF00FF' },
+      { key: '5', text: 'Save Game', color: '#FFFFFF' },
     ];
 
     this.ctx.textAlign = 'left';

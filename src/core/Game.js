@@ -2,6 +2,7 @@ import { CONFIG } from '../config.js';
 import { Input } from './Input.js';
 import { Renderer } from './Renderer.js';
 import { TouchControls } from './TouchControls.js';
+import { SaveManager } from './SaveManager.js';
 import { World } from '../world/World.js';
 import { Player } from '../entities/Player.js';
 import { DrillingSystem } from '../systems/Drilling.js';
@@ -24,7 +25,7 @@ export class Game {
     this.hazards = new Hazards(this.world, this.player);
     this.drillingSystem = new DrillingSystem(this.player, this.world, this.hazards);
     this.economy = new Economy(this.player);
-    this.surfaceBase = new SurfaceBase(this.player, this.economy);
+    this.surfaceBase = new SurfaceBase(this.player, this.economy, this);
 
     // Game loop
     this.running = false;
@@ -34,6 +35,12 @@ export class Game {
     // Fixed timestep
     this.TICK_RATE = 60;
     this.TICK_DURATION = 1000 / this.TICK_RATE;
+
+    // Track last surface state for auto-save
+    this.wasAtSurface = false;
+
+    // Try to load save on startup
+    this.loadGame();
   }
 
   start() {
@@ -87,6 +94,13 @@ export class Game {
     // Update input state (clear pressed/released keys)
     this.input.update();
 
+    // Auto-save when returning to surface
+    const atSurface = this.surfaceBase.isAtSurface();
+    if (atSurface && !this.wasAtSurface) {
+      this.saveGame();
+    }
+    this.wasAtSurface = atSurface;
+
     // Check game over conditions
     if (this.player.fuel <= 0) {
       console.log('Out of fuel! Game Over');
@@ -113,66 +127,34 @@ export class Game {
     );
   }
 
-  // Save/Load methods (for future)
-  save() {
-    const saveData = {
-      version: 1,
-      seed: this.world.seed,
-      player: {
-        x: this.player.x,
-        y: this.player.y,
-        fuel: this.player.fuel,
-        hull: this.player.hull,
-        cargo: this.player.cargo,
-        money: this.player.money,
-        drillLevel: this.player.drillLevel,
-        maxFuel: this.player.maxFuel,
-        maxHull: this.player.maxHull,
-        maxCargo: this.player.maxCargo,
-      },
-      world: {
-        modifiedTiles: this.world.getModifiedTiles(),
-      },
-    };
-
-    localStorage.setItem('marsMiner_save', JSON.stringify(saveData));
-    console.log('Game saved!');
+  // Save/Load methods
+  saveGame() {
+    return SaveManager.save(this);
   }
 
-  load() {
-    const saveJson = localStorage.getItem('marsMiner_save');
-    if (!saveJson) {
-      console.log('No save data found');
-      return false;
-    }
-
-    try {
-      const saveData = JSON.parse(saveJson);
-
+  loadGame() {
+    const saveData = SaveManager.load();
+    if (saveData) {
       // Recreate world with same seed
       this.world = new World(saveData.seed);
-      this.world.applyModifiedTiles(saveData.world.modifiedTiles);
 
-      // Restore player state
-      this.player.x = saveData.player.x;
-      this.player.y = saveData.player.y;
-      this.player.fuel = saveData.player.fuel;
-      this.player.hull = saveData.player.hull;
-      this.player.cargo = saveData.player.cargo;
-      this.player.money = saveData.player.money;
-      this.player.drillLevel = saveData.player.drillLevel;
-      this.player.maxFuel = saveData.player.maxFuel;
-      this.player.maxHull = saveData.player.maxHull;
-      this.player.maxCargo = saveData.player.maxCargo;
+      // Apply save data
+      SaveManager.applySaveData(this, saveData);
 
-      // Recreate drilling system
-      this.drillingSystem = new DrillingSystem(this.player, this.world);
+      // Recreate systems with loaded state
+      this.hazards = new Hazards(this.world, this.player);
+      this.drillingSystem = new DrillingSystem(this.player, this.world, this.hazards);
 
-      console.log('Game loaded!');
       return true;
-    } catch (error) {
-      console.error('Failed to load save:', error);
-      return false;
     }
+    return false;
+  }
+
+  deleteSave() {
+    return SaveManager.deleteSave();
+  }
+
+  hasSave() {
+    return SaveManager.hasSave();
   }
 }
