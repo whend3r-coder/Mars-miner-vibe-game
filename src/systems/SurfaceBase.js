@@ -139,11 +139,12 @@ export class SurfaceBase {
     });
 
     if (this.menuType === 'main') {
-      // Check close button (X button at top right of menu)
-      const closeBtn = { x: centerX + 50 * scale, y: centerY - 55 * scale, w: 20 * scale, h: 10 * scale };
-      console.log('Close button hitbox:', closeBtn);
+      // Check close button (larger button at top right) - MUST match renderer
+      const closeBtnSize = 40 * scale;
+      const closeBtnX = centerX + 80 * scale;
+      const closeBtnY = centerY - 70 * scale;
 
-      if (this.isPointInRect(touchX, touchY, closeBtn.x, closeBtn.y, closeBtn.w, closeBtn.h)) {
+      if (this.isPointInRect(touchX, touchY, closeBtnX, closeBtnY, closeBtnSize, closeBtnSize)) {
         console.log('Close button clicked!');
         if (this.renderer) {
           this.renderer.debugInfo.push('ACTION: Close button clicked');
@@ -152,24 +153,31 @@ export class SurfaceBase {
         return;
       }
 
-      // Check main menu option buttons (larger hitboxes for touch)
+      // Check main menu option buttons - MUST match renderer layout
+      const buttonWidth = 160 * scale;
+      const buttonHeight = 24 * scale;
+      const buttonSpacing = 6 * scale;
+      const startY = centerY - 18 * scale;
+
       const options = [
-        { y: centerY - 15 * scale, action: () => this.refuelFull(), name: 'Refuel' },
-        { y: centerY - 3 * scale, action: () => this.sellAll(), name: 'Sell' },
-        { y: centerY + 9 * scale, action: () => this.repairFull(), name: 'Repair' },
-        { y: centerY + 21 * scale, action: () => this.openMenu('upgrade'), name: 'Upgrades' },
-        { y: centerY + 33 * scale, action: () => this.saveGame(), name: 'Save' },
+        { action: () => this.refuelFull(), name: 'Refuel' },
+        { action: () => this.sellAll(), name: 'Sell' },
+        { action: () => this.repairFull(), name: 'Repair' },
+        { action: () => this.openMenu('upgrade'), name: 'Upgrades' },
+        { action: () => this.saveGame(), name: 'Save' },
       ];
 
-      for (const option of options) {
-        // Larger hitbox: 140 wide, 16 tall, centered on text
-        const hitbox = { x: centerX - 70 * scale, y: option.y - 10 * scale, w: 140 * scale, h: 16 * scale };
-        if (this.isPointInRect(touchX, touchY, hitbox.x, hitbox.y, hitbox.w, hitbox.h)) {
-          console.log(`Menu option clicked: ${option.name}`, hitbox);
+      for (let i = 0; i < options.length; i++) {
+        const y = startY + i * (buttonHeight + buttonSpacing);
+        const btnX = centerX - buttonWidth / 2;
+        const btnY = y - buttonHeight / 2;
+
+        if (this.isPointInRect(touchX, touchY, btnX, btnY, buttonWidth, buttonHeight)) {
+          console.log(`Menu option clicked: ${options[i].name}`);
           if (this.renderer) {
-            this.renderer.debugInfo.push(`ACTION: ${option.name} clicked`);
+            this.renderer.debugInfo.push(`ACTION: ${options[i].name} clicked`);
           }
-          option.action();
+          options[i].action();
           return;
         }
       }
@@ -178,8 +186,13 @@ export class SurfaceBase {
         this.renderer.debugInfo.push('ACTION: No button clicked');
       }
     } else if (this.menuType === 'upgrade') {
-      // Check back button (larger hitbox)
-      if (this.isPointInRect(touchX, touchY, centerX - 30 * scale, centerY + 40 * scale, 60 * scale, 16 * scale)) {
+      // Check back button - MUST match renderer
+      const backBtnWidth = 100 * scale;
+      const backBtnHeight = 35 * scale;
+      const backBtnX = centerX - backBtnWidth / 2;
+      const backBtnY = centerY + 48 * scale;
+
+      if (this.isPointInRect(touchX, touchY, backBtnX, backBtnY, backBtnWidth, backBtnHeight)) {
         if (this.renderer) {
           this.renderer.debugInfo.push('ACTION: Back button clicked');
         }
@@ -187,22 +200,24 @@ export class SurfaceBase {
         return;
       }
 
-      // Check upgrade option buttons (larger hitboxes)
-      const upgrades = [
-        { y: centerY - 25 * scale, type: 'drillSpeed' },
-        { y: centerY - 11 * scale, type: 'drillPower' },
-        { y: centerY + 3 * scale, type: 'fuelTank' },
-        { y: centerY + 17 * scale, type: 'cargoBay' },
-        { y: centerY + 31 * scale, type: 'hull' },
-      ];
+      // Check upgrade option buttons - MUST match renderer layout
+      const buttonWidth = 180 * scale;
+      const buttonHeight = 28 * scale;
+      const buttonSpacing = 4 * scale;
+      const startY = centerY - 25 * scale;
 
-      for (const upgrade of upgrades) {
-        // Larger hitbox: 160 wide, 16 tall
-        if (this.isPointInRect(touchX, touchY, centerX - 80 * scale, upgrade.y - 8 * scale, 160 * scale, 16 * scale)) {
+      const upgradeTypes = ['drillSpeed', 'drillPower', 'fuelTank', 'cargoBay', 'hull'];
+
+      for (let i = 0; i < upgradeTypes.length; i++) {
+        const y = startY + i * (buttonHeight + buttonSpacing);
+        const btnX = centerX - buttonWidth / 2;
+        const btnY = y - buttonHeight / 2;
+
+        if (this.isPointInRect(touchX, touchY, btnX, btnY, buttonWidth, buttonHeight)) {
           if (this.renderer) {
-            this.renderer.debugInfo.push(`ACTION: Upgrade ${upgrade.type} clicked`);
+            this.renderer.debugInfo.push(`ACTION: Upgrade ${upgradeTypes[i]} clicked`);
           }
-          this.buyUpgrade(upgrade.type);
+          this.buyUpgrade(upgradeTypes[i]);
           return;
         }
       }

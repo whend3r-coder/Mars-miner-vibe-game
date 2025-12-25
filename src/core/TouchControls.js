@@ -59,14 +59,18 @@ export class TouchControls {
 
       // Check surface button first (convert internal coords to screen coords)
       if (this.surfaceButtonVisible) {
-        const scaleX = rect.width / this.canvas.width;
-        const scaleY = rect.height / this.canvas.height;
-        const btnX = (this.canvas.width / 2 - 60) * scaleX;
-        const btnY = (this.canvas.height - 35) * scaleY;
-        const btnWidth = 120 * scaleX;
-        const btnHeight = 30 * scaleY;
+        // Calculate button position (must match render method)
+        const scale = this.canvas.width / 240;
+        const btnWidth = 120 * scale;
+        const btnHeight = 40 * scale;
+        const btnX = this.canvas.width / 2 - btnWidth / 2;
+        const btnY = this.canvas.height - btnHeight - 20 * scale;
 
-        if (x >= btnX && x <= btnX + btnWidth && y >= btnY && y <= btnY + btnHeight) {
+        // Convert touch to canvas coordinates
+        const touchX = (x - rect.left) * (this.canvas.width / rect.width);
+        const touchY = (y - rect.top) * (this.canvas.height / rect.height);
+
+        if (touchX >= btnX && touchX <= btnX + btnWidth && touchY >= btnY && touchY <= btnY + btnHeight) {
           this.surfaceButton.pressed = true;
           if (this.surfaceButtonCallback) {
             this.surfaceButtonCallback();
@@ -235,19 +239,25 @@ export class TouchControls {
     // Draw surface button
     if (this.surfaceButtonVisible) {
       ctx.save();
-      const btnX = ctx.canvas.width / 2 - 60;
-      const btnY = ctx.canvas.height - 35;
-      const btnWidth = 120;
-      const btnHeight = 30;
 
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
+      // Calculate scale for proper sizing on all screens
+      const scale = ctx.canvas.width / 240; // Base scale from internal width
+
+      // Make button much larger for mobile (fat fingers!)
+      const btnWidth = 120 * scale;
+      const btnHeight = 40 * scale;
+      const btnX = ctx.canvas.width / 2 - btnWidth / 2;
+      const btnY = ctx.canvas.height - btnHeight - 20 * scale;
+
+      // Draw button with clear visual feedback
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.95)';
       ctx.fillRect(btnX, btnY, btnWidth, btnHeight);
       ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3 * scale;
       ctx.strokeRect(btnX, btnY, btnWidth, btnHeight);
 
       ctx.fillStyle = '#000000';
-      ctx.font = 'bold 12px monospace';
+      ctx.font = `bold ${Math.floor(16 * scale)}px monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('ENTER BASE', ctx.canvas.width / 2, btnY + btnHeight / 2);

@@ -421,47 +421,72 @@ export class Renderer {
 
     // Title
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = `bold ${Math.floor(16 * scale)}px monospace`;
+    this.ctx.font = `bold ${Math.floor(20 * scale)}px monospace`;
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('SURFACE BASE', centerX, centerY - 50 * scale);
+    this.ctx.fillText('SURFACE BASE', centerX, centerY - 60 * scale);
 
     // Player stats
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
-    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 35 * scale);
+    this.ctx.font = `${Math.floor(14 * scale)}px monospace`;
+    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 40 * scale);
 
-    // Menu options
+    // Menu options as BIG touch-friendly buttons
     const options = [
-      { key: '1', text: `Refuel ($${economy.refuelCost})`, color: player.fuel < player.maxFuel ? '#00FF00' : '#666666' },
-      { key: '2', text: `Sell Cargo ($${player.cargoValue})`, color: player.cargo.length > 0 ? '#FFD700' : '#666666' },
-      { key: '3', text: `Repair Hull ($${economy.repairCost})`, color: player.hull < player.maxHull ? '#00FFFF' : '#666666' },
-      { key: '4', text: 'Upgrades', color: '#FF00FF' },
-      { key: '5', text: 'Save Game', color: '#FFFFFF' },
+      { text: `Refuel ($${economy.refuelCost})`, color: player.fuel < player.maxFuel ? '#00FF00' : '#666666' },
+      { text: `Sell Cargo ($${player.cargoValue})`, color: player.cargo.length > 0 ? '#FFD700' : '#666666' },
+      { text: `Repair Hull ($${economy.repairCost})`, color: player.hull < player.maxHull ? '#00FFFF' : '#666666' },
+      { text: 'Upgrades', color: '#FF00FF' },
+      { text: 'Save Game', color: '#FFFFFF' },
     ];
 
-    this.ctx.textAlign = 'left';
-    this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
+    // Draw buttons with backgrounds (MUCH larger for mobile!)
+    const buttonWidth = 160 * scale;
+    const buttonHeight = 24 * scale;
+    const buttonSpacing = 6 * scale;
+    const startY = centerY - 18 * scale;
+
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.font = `bold ${Math.floor(14 * scale)}px monospace`;
 
     options.forEach((option, index) => {
-      const y = centerY - 15 * scale + index * 12 * scale;
+      const y = startY + index * (buttonHeight + buttonSpacing);
+      const btnX = centerX - buttonWidth / 2;
+
+      // Button background
+      this.ctx.fillStyle = option.color === '#666666' ? 'rgba(50, 50, 50, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+      this.ctx.fillRect(btnX, y - buttonHeight / 2, buttonWidth, buttonHeight);
+
+      // Button border
+      this.ctx.strokeStyle = option.color;
+      this.ctx.lineWidth = 2 * scale;
+      this.ctx.strokeRect(btnX, y - buttonHeight / 2, buttonWidth, buttonHeight);
+
+      // Button text
       this.ctx.fillStyle = option.color;
-      this.ctx.fillText(`[${option.key}] ${option.text}`, centerX - 60 * scale, y);
+      this.ctx.fillText(option.text, centerX, y);
     });
 
     // Close button for touch controls
     if (touchControls && touchControls.enabled) {
-      this.ctx.fillStyle = '#FF0000';
-      this.ctx.fillRect(centerX + 50 * scale, centerY - 55 * scale, 20 * scale, 10 * scale);
+      const closeBtnSize = 40 * scale;
+      const closeBtnX = centerX + 80 * scale;
+      const closeBtnY = centerY - 70 * scale;
+
+      this.ctx.fillStyle = 'rgba(200, 0, 0, 0.9)';
+      this.ctx.fillRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize);
+      this.ctx.strokeStyle = '#FFFFFF';
+      this.ctx.lineWidth = 3 * scale;
+      this.ctx.strokeRect(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize);
+
       this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText('X', centerX + 60 * scale, centerY - 48 * scale);
+      this.ctx.font = `bold ${Math.floor(24 * scale)}px monospace`;
+      this.ctx.fillText('X', closeBtnX + closeBtnSize / 2, closeBtnY + closeBtnSize / 2);
     } else {
       // Instructions for keyboard
       this.ctx.fillStyle = '#888888';
-      this.ctx.font = `${Math.floor(10 * scale)}px monospace`;
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText('Press ESC to close', centerX, centerY + 40 * scale);
+      this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
+      this.ctx.fillText('Press ESC to close', centerX, centerY + 50 * scale);
     }
   }
 
@@ -470,65 +495,84 @@ export class Renderer {
 
     // Title
     this.ctx.fillStyle = '#FF00FF';
-    this.ctx.font = `bold ${Math.floor(16 * scale)}px monospace`;
+    this.ctx.font = `bold ${Math.floor(20 * scale)}px monospace`;
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('UPGRADES', centerX, centerY - 50 * scale);
+    this.ctx.fillText('UPGRADES', centerX, centerY - 60 * scale);
 
     // Money
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
-    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 40 * scale);
+    this.ctx.font = `${Math.floor(14 * scale)}px monospace`;
+    this.ctx.fillText(`Money: $${player.money}`, centerX, centerY - 42 * scale);
 
-    // Upgrade options
+    // Upgrade options as BIG touch-friendly buttons
     const upgrades = economy.upgrades;
     const upgradeKeys = [
-      { key: '1', type: 'drillSpeed', name: 'Drill Speed' },
-      { key: '2', type: 'drillPower', name: 'Drill Power' },
-      { key: '3', type: 'fuelTank', name: 'Fuel Tank' },
-      { key: '4', type: 'cargoBay', name: 'Cargo Bay' },
-      { key: '5', type: 'hull', name: 'Hull Armor' },
+      { type: 'drillSpeed', name: 'Drill Speed' },
+      { type: 'drillPower', name: 'Drill Power' },
+      { type: 'fuelTank', name: 'Fuel Tank' },
+      { type: 'cargoBay', name: 'Cargo Bay' },
+      { type: 'hull', name: 'Hull Armor' },
     ];
 
-    this.ctx.textAlign = 'left';
-    this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
+    // Draw buttons with backgrounds
+    const buttonWidth = 180 * scale;
+    const buttonHeight = 28 * scale;
+    const buttonSpacing = 4 * scale;
+    const startY = centerY - 25 * scale;
+
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
 
     upgradeKeys.forEach((item, index) => {
       const upgrade = upgrades.find(u => u.type === item.type);
-      const y = centerY - 25 * scale + index * 14 * scale;
+      const y = startY + index * (buttonHeight + buttonSpacing);
+      const btnX = centerX - buttonWidth / 2;
 
+      let color, text;
       if (upgrade.isMaxed) {
-        this.ctx.fillStyle = '#666666';
-        this.ctx.fillText(`[${item.key}] ${item.name} - MAX`, centerX - 70 * scale, y);
+        color = '#666666';
+        text = `${item.name} - MAX`;
       } else {
         const canAfford = player.money >= upgrade.nextCost;
-        this.ctx.fillStyle = canAfford ? '#00FF00' : '#FF6666';
-        this.ctx.fillText(
-          `[${item.key}] ${item.name} Lv${upgrade.currentLevel + 1} - $${upgrade.nextCost}`,
-          centerX - 70 * scale,
-          y
-        );
-
-        // Description
-        this.ctx.fillStyle = '#AAAAAA';
-        this.ctx.font = `${Math.floor(10 * scale)}px monospace`;
-        this.ctx.fillText(upgrade.description, centerX - 68 * scale, y + 6 * scale);
-        this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
+        color = canAfford ? '#00FF00' : '#FF6666';
+        text = `${item.name} Lv${upgrade.currentLevel + 1} $${upgrade.nextCost}`;
       }
+
+      // Button background
+      this.ctx.fillStyle = color === '#666666' ? 'rgba(50, 50, 50, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+      this.ctx.fillRect(btnX, y - buttonHeight / 2, buttonWidth, buttonHeight);
+
+      // Button border
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = 2 * scale;
+      this.ctx.strokeRect(btnX, y - buttonHeight / 2, buttonWidth, buttonHeight);
+
+      // Button text
+      this.ctx.fillStyle = color;
+      this.ctx.font = `bold ${Math.floor(13 * scale)}px monospace`;
+      this.ctx.fillText(text, centerX, y);
     });
 
     // Back button for touch controls
     if (touchControls && touchControls.enabled) {
-      this.ctx.fillStyle = '#FF6600';
-      this.ctx.fillRect(centerX - 20 * scale, centerY + 45 * scale, 40 * scale, 10 * scale);
+      const backBtnWidth = 100 * scale;
+      const backBtnHeight = 35 * scale;
+      const backBtnX = centerX - backBtnWidth / 2;
+      const backBtnY = centerY + 48 * scale;
+
+      this.ctx.fillStyle = 'rgba(255, 102, 0, 0.9)';
+      this.ctx.fillRect(backBtnX, backBtnY, backBtnWidth, backBtnHeight);
+      this.ctx.strokeStyle = '#FFFFFF';
+      this.ctx.lineWidth = 3 * scale;
+      this.ctx.strokeRect(backBtnX, backBtnY, backBtnWidth, backBtnHeight);
+
       this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText('BACK', centerX, centerY + 52 * scale);
+      this.ctx.font = `bold ${Math.floor(16 * scale)}px monospace`;
+      this.ctx.fillText('BACK', centerX, backBtnY + backBtnHeight / 2);
     } else {
       // Instructions for keyboard
       this.ctx.fillStyle = '#888888';
-      this.ctx.font = `${Math.floor(10 * scale)}px monospace`;
-      this.ctx.textAlign = 'center';
+      this.ctx.font = `${Math.floor(12 * scale)}px monospace`;
       this.ctx.fillText('Press B or ESC to go back', centerX, centerY + 50 * scale);
     }
   }
