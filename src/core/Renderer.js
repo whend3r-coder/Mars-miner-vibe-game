@@ -24,6 +24,9 @@ export class Renderer {
     this.sprites = {};
     this.spritesLoaded = false;
     this.loadSprites();
+
+    // Debug info for Android APK testing
+    this.debugInfo = [];
   }
 
   loadSprites() {
@@ -223,6 +226,9 @@ export class Renderer {
     if (surfaceBase) {
       this.renderSurfaceMenu(surfaceBase, touchControls);
     }
+
+    // Render debug overlay for Android APK testing
+    this.renderDebugOverlay(touchControls, surfaceBase);
   }
 
   renderHUD(player) {
@@ -515,5 +521,37 @@ export class Renderer {
       this.ctx.textAlign = 'center';
       this.ctx.fillText('Press B or ESC to go back', centerX, centerY + 50 * scale);
     }
+  }
+
+  renderDebugOverlay(touchControls, surfaceBase) {
+    if (!touchControls || this.debugInfo.length === 0) return;
+
+    this.ctx.save();
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Screen resolution
+
+    const scale = this.canvas.width / CONFIG.INTERNAL_WIDTH;
+    const fontSize = Math.floor(10 * scale);
+    const lineHeight = fontSize + 4 * scale;
+    const padding = 5 * scale;
+
+    // Semi-transparent background
+    const debugHeight = this.debugInfo.length * lineHeight + padding * 2;
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    this.ctx.fillRect(0, 0, this.canvas.width, debugHeight);
+
+    // Debug text
+    this.ctx.font = `${fontSize}px monospace`;
+    this.ctx.fillStyle = '#00FF00';
+    this.ctx.textAlign = 'left';
+    this.ctx.textBaseline = 'top';
+
+    this.debugInfo.forEach((line, index) => {
+      this.ctx.fillText(line, padding, padding + index * lineHeight);
+    });
+
+    this.ctx.restore();
+
+    // Clear debug info for next frame
+    this.debugInfo = [];
   }
 }

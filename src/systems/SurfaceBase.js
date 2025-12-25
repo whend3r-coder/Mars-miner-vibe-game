@@ -5,6 +5,7 @@ export class SurfaceBase {
     this.player = player;
     this.economy = economy;
     this.game = game;
+    this.renderer = null; // Set via setRenderer()
 
     // Surface zone is top few tiles
     this.surfaceDepth = 3; // tiles
@@ -13,6 +14,10 @@ export class SurfaceBase {
     this.showMenu = false;
     this.menuType = null; // 'main', 'upgrade'
     this.selectedUpgrade = null;
+  }
+
+  setRenderer(renderer) {
+    this.renderer = renderer;
   }
 
   update(input, touchControls = null) {
@@ -106,6 +111,9 @@ export class SurfaceBase {
     // Get menu layout from renderer (screen coordinates)
     if (!this.menuLayout) {
       console.warn('Menu layout not set! Touch detection will not work.');
+      if (this.renderer) {
+        this.renderer.debugInfo.push('ERROR: Menu layout not set!');
+      }
       return;
     }
     const { centerX, centerY, scale } = this.menuLayout;
@@ -114,6 +122,17 @@ export class SurfaceBase {
     const canvasScale = touchControls.canvas.width / CONFIG.INTERNAL_WIDTH;
     const touchX = touch.x * canvasScale;
     const touchY = touch.y * canvasScale;
+
+    // Add debug info
+    if (this.renderer) {
+      this.renderer.debugInfo.push(`Touch Debug (${this.menuType || 'none'}):`);
+      this.renderer.debugInfo.push(`Canvas: ${touch.x.toFixed(0)}, ${touch.y.toFixed(0)}`);
+      this.renderer.debugInfo.push(`Screen: ${touchX.toFixed(0)}, ${touchY.toFixed(0)}`);
+      this.renderer.debugInfo.push(`Center: ${centerX.toFixed(0)}, ${centerY.toFixed(0)}`);
+      this.renderer.debugInfo.push(`Scale: ${scale.toFixed(2)}, CanvasScale: ${canvasScale.toFixed(2)}`);
+      this.renderer.debugInfo.push(`Canvas size: ${touchControls.canvas.width}x${touchControls.canvas.height}`);
+      this.renderer.debugInfo.push(`Internal: ${CONFIG.INTERNAL_WIDTH}x${CONFIG.INTERNAL_HEIGHT}`);
+    }
 
     console.log('Touch detected:', {
       canvasTouch: { x: touch.x, y: touch.y },
@@ -129,6 +148,9 @@ export class SurfaceBase {
 
       if (this.isPointInRect(touchX, touchY, closeBtn.x, closeBtn.y, closeBtn.w, closeBtn.h)) {
         console.log('Close button clicked!');
+        if (this.renderer) {
+          this.renderer.debugInfo.push('ACTION: Close button clicked');
+        }
         this.closeMenu();
         return;
       }
@@ -147,14 +169,23 @@ export class SurfaceBase {
         const hitbox = { x: centerX - 70 * scale, y: option.y - 10 * scale, w: 140 * scale, h: 16 * scale };
         if (this.isPointInRect(touchX, touchY, hitbox.x, hitbox.y, hitbox.w, hitbox.h)) {
           console.log(`Menu option clicked: ${option.name}`, hitbox);
+          if (this.renderer) {
+            this.renderer.debugInfo.push(`ACTION: ${option.name} clicked`);
+          }
           option.action();
           return;
         }
       }
       console.log('No menu option clicked');
+      if (this.renderer) {
+        this.renderer.debugInfo.push('ACTION: No button clicked');
+      }
     } else if (this.menuType === 'upgrade') {
       // Check back button (larger hitbox)
       if (this.isPointInRect(touchX, touchY, centerX - 30 * scale, centerY + 40 * scale, 60 * scale, 16 * scale)) {
+        if (this.renderer) {
+          this.renderer.debugInfo.push('ACTION: Back button clicked');
+        }
         this.openMenu('main');
         return;
       }
@@ -171,9 +202,15 @@ export class SurfaceBase {
       for (const upgrade of upgrades) {
         // Larger hitbox: 160 wide, 16 tall
         if (this.isPointInRect(touchX, touchY, centerX - 80 * scale, upgrade.y - 8 * scale, 160 * scale, 16 * scale)) {
+          if (this.renderer) {
+            this.renderer.debugInfo.push(`ACTION: Upgrade ${upgrade.type} clicked`);
+          }
           this.buyUpgrade(upgrade.type);
           return;
         }
+      }
+      if (this.renderer) {
+        this.renderer.debugInfo.push('ACTION: No upgrade clicked');
       }
     }
   }

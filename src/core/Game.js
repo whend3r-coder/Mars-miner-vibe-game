@@ -26,6 +26,7 @@ export class Game {
     this.drillingSystem = new DrillingSystem(this.player, this.world, this.hazards);
     this.economy = new Economy(this.player);
     this.surfaceBase = new SurfaceBase(this.player, this.economy, this);
+    this.surfaceBase.setRenderer(this.renderer); // For debug overlay
 
     // Game loop
     this.running = false;
