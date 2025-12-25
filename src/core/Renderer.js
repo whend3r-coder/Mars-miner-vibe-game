@@ -19,6 +19,44 @@ export class Renderer {
     this.cameraY = 0;
     this.targetCameraX = 0;
     this.targetCameraY = 0;
+
+    // Load sprites
+    this.sprites = {};
+    this.spritesLoaded = false;
+    this.loadSprites();
+  }
+
+  loadSprites() {
+    const spritesToLoad = {
+      player: 'assets/sprites/player.png',
+      fuelstation: 'assets/sprites/fuelstation.png',
+      shop: 'assets/sprites/shop.png',
+      repairshop: 'assets/sprites/repairshop.png',
+      marsdirt: 'assets/sprites/marsdirt.png'
+    };
+
+    let loadedCount = 0;
+    const totalCount = Object.keys(spritesToLoad).length;
+
+    for (const [key, path] of Object.entries(spritesToLoad)) {
+      const img = new Image();
+      img.onload = () => {
+        loadedCount++;
+        if (loadedCount === totalCount) {
+          this.spritesLoaded = true;
+          console.log('All sprites loaded!');
+        }
+      };
+      img.onerror = () => {
+        console.error(`Failed to load sprite: ${path}`);
+        loadedCount++;
+        if (loadedCount === totalCount) {
+          this.spritesLoaded = true;
+        }
+      };
+      img.src = path;
+      this.sprites[key] = img;
+    }
   }
 
   scaleCanvas() {
@@ -73,9 +111,26 @@ export class Renderer {
         const screenX = x * CONFIG.TILE_SIZE - this.cameraX;
         const screenY = y * CONFIG.TILE_SIZE - this.cameraY;
 
-        // Draw tile with shading for depth
-        this.ctx.fillStyle = tile.color;
-        this.ctx.fillRect(screenX, screenY, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+        // Use marsdirt texture for dirt and rock tiles (id 1 and 2)
+        if (this.spritesLoaded && this.sprites.marsdirt && this.sprites.marsdirt.complete && (tile.id === 1 || tile.id === 2)) {
+          // Draw tiled marsdirt texture
+          const pattern = this.ctx.createPattern(this.sprites.marsdirt, 'repeat');
+          this.ctx.fillStyle = pattern;
+          this.ctx.save();
+          this.ctx.translate(screenX, screenY);
+          this.ctx.fillRect(0, 0, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+          this.ctx.restore();
+
+          // Add slight color tint for rock vs dirt
+          if (tile.id === 2) {
+            this.ctx.fillStyle = 'rgba(105, 105, 105, 0.3)'; // Gray tint for rock
+            this.ctx.fillRect(screenX, screenY, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+          }
+        } else {
+          // Draw tile with solid color fallback
+          this.ctx.fillStyle = tile.color;
+          this.ctx.fillRect(screenX, screenY, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+        }
 
         // Add texture pattern based on tile type
         if (tile.ore) {
@@ -83,8 +138,8 @@ export class Renderer {
           this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
           this.ctx.fillRect(screenX + 4, screenY + 4, 4, 4);
           this.ctx.fillRect(screenX + CONFIG.TILE_SIZE - 8, screenY + CONFIG.TILE_SIZE - 8, 4, 4);
-        } else if (tile.solid) {
-          // Regular blocks get subtle shading
+        } else if (tile.solid && !this.spritesLoaded) {
+          // Regular blocks get subtle shading (only when not using textures)
           this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
           this.ctx.fillRect(screenX, screenY + CONFIG.TILE_SIZE - 4, CONFIG.TILE_SIZE, 4);
           this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
@@ -116,22 +171,46 @@ export class Renderer {
     const playerScreenX = player.x * CONFIG.TILE_SIZE - this.cameraX;
     const playerScreenY = player.y * CONFIG.TILE_SIZE - this.cameraY;
 
-    this.ctx.fillStyle = player.drilling ? '#FF6600' : '#00FF00';
-    this.ctx.fillRect(
-      playerScreenX,
-      playerScreenY,
-      player.width * CONFIG.TILE_SIZE,
-      player.height * CONFIG.TILE_SIZE
-    );
+    if (this.spritesLoaded && this.sprites.player.complete) {
+      // Draw player sprite
+      const playerWidth = player.width * CONFIG.TILE_SIZE;
+      const playerHeight = player.height * CONFIG.TILE_SIZE;
 
-    // Player indicator (direction)
-    this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.fillRect(
-      playerScreenX + player.width * CONFIG.TILE_SIZE / 2 - 2,
-      playerScreenY + player.height * CONFIG.TILE_SIZE / 2 - 2,
-      4,
-      4
-    );
+      this.ctx.drawImage(
+        this.sprites.player,
+        playerScreenX,
+        playerScreenY,
+        playerWidth,
+        playerHeight
+      );
+
+      // Add glow effect when drilling
+      if (player.drilling) {
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.3;
+        this.ctx.fillStyle = '#FF6600';
+        this.ctx.fillRect(playerScreenX, playerScreenY, playerWidth, playerHeight);
+        this.ctx.restore();
+      }
+    } else {
+      // Fallback to colored rectangle
+      this.ctx.fillStyle = player.drilling ? '#FF6600' : '#00FF00';
+      this.ctx.fillRect(
+        playerScreenX,
+        playerScreenY,
+        player.width * CONFIG.TILE_SIZE,
+        player.height * CONFIG.TILE_SIZE
+      );
+
+      // Player indicator (direction)
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.fillRect(
+        playerScreenX + player.width * CONFIG.TILE_SIZE / 2 - 2,
+        playerScreenY + player.height * CONFIG.TILE_SIZE / 2 - 2,
+        4,
+        4
+      );
+    }
 
     // Render HUD
     this.renderHUD(player);
@@ -195,11 +274,11 @@ export class Renderer {
   }
 
   renderSurfaceBuildings(world) {
-    // Draw simple building shapes at the surface (sitting on ground at y=0)
+    // Draw building sprites at the surface (sitting on ground at y=0)
     const buildings = [
-      { x: 45, y: 0, width: 3, height: 3, color: '#00AA00', name: 'FUEL', icon: 'F' },
-      { x: 49, y: 0, width: 3, height: 3, color: '#FFAA00', name: 'SHOP', icon: '$' },
-      { x: 53, y: 0, width: 3, height: 3, color: '#00AAFF', name: 'REPAIR', icon: '+' },
+      { x: 45, y: 0, width: 3, height: 3, sprite: 'fuelstation', name: 'FUEL', color: '#00AA00', icon: 'F' },
+      { x: 49, y: 0, width: 3, height: 3, sprite: 'shop', name: 'SHOP', color: '#FFAA00', icon: '$' },
+      { x: 53, y: 0, width: 3, height: 3, sprite: 'repairshop', name: 'REPAIR', color: '#00AAFF', icon: '+' },
     ];
 
     buildings.forEach(building => {
@@ -208,35 +287,47 @@ export class Renderer {
       const width = building.width * CONFIG.TILE_SIZE;
       const height = building.height * CONFIG.TILE_SIZE;
 
-      // Draw building body
-      this.ctx.fillStyle = building.color;
-      this.ctx.fillRect(screenX, screenY, width, height);
+      if (this.spritesLoaded && this.sprites[building.sprite] && this.sprites[building.sprite].complete) {
+        // Draw building sprite
+        this.ctx.drawImage(
+          this.sprites[building.sprite],
+          screenX,
+          screenY,
+          width,
+          height
+        );
+      } else {
+        // Fallback to colored rectangles
+        // Draw building body
+        this.ctx.fillStyle = building.color;
+        this.ctx.fillRect(screenX, screenY, width, height);
 
-      // Draw building border
-      this.ctx.strokeStyle = '#FFFFFF';
-      this.ctx.lineWidth = 2;
-      this.ctx.strokeRect(screenX, screenY, width, height);
+        // Draw building border
+        this.ctx.strokeStyle = '#FFFFFF';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(screenX, screenY, width, height);
 
-      // Draw roof
-      this.ctx.fillStyle = '#8B4513';
-      this.ctx.beginPath();
-      this.ctx.moveTo(screenX - 4, screenY);
-      this.ctx.lineTo(screenX + width / 2, screenY - 10);
-      this.ctx.lineTo(screenX + width + 4, screenY);
-      this.ctx.closePath();
-      this.ctx.fill();
+        // Draw roof
+        this.ctx.fillStyle = '#8B4513';
+        this.ctx.beginPath();
+        this.ctx.moveTo(screenX - 4, screenY);
+        this.ctx.lineTo(screenX + width / 2, screenY - 10);
+        this.ctx.lineTo(screenX + width + 4, screenY);
+        this.ctx.closePath();
+        this.ctx.fill();
 
-      // Draw icon
-      this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.font = 'bold 20px monospace';
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(building.icon, screenX + width / 2, screenY + height / 2);
+        // Draw icon
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = 'bold 20px monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(building.icon, screenX + width / 2, screenY + height / 2);
 
-      // Draw label
-      this.ctx.font = '10px monospace';
-      this.ctx.fillStyle = '#FFD700';
-      this.ctx.fillText(building.name, screenX + width / 2, screenY - 15);
+        // Draw label
+        this.ctx.font = '10px monospace';
+        this.ctx.fillStyle = '#FFD700';
+        this.ctx.fillText(building.name, screenX + width / 2, screenY - 15);
+      }
     });
 
     this.ctx.textAlign = 'left';
