@@ -29,8 +29,8 @@ export const CONFIG = {
   RESCUE_COST: 500,        // if stranded
 
   // Rendering
-  INTERNAL_WIDTH: 480,
-  INTERNAL_HEIGHT: 270,
+  INTERNAL_WIDTH: 240,     // Reduced for 2x zoom (was 480)
+  INTERNAL_HEIGHT: 135,    // Reduced for 2x zoom (was 270)
   CAMERA_LERP: 0.1,        // smoothing factor
 
   // Drilling

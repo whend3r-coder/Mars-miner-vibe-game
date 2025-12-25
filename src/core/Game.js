@@ -1,22 +1,32 @@
 import { CONFIG } from '../config.js';
 import { Input } from './Input.js';
 import { Renderer } from './Renderer.js';
+import { TouchControls } from './TouchControls.js';
+import { SaveManager } from './SaveManager.js';
 import { World } from '../world/World.js';
 import { Player } from '../entities/Player.js';
 import { DrillingSystem } from '../systems/Drilling.js';
+import { Economy } from '../systems/Economy.js';
+import { SurfaceBase } from '../systems/SurfaceBase.js';
+import { Hazards } from '../systems/Hazards.js';
 
 export class Game {
   constructor(canvas) {
     this.canvas = canvas;
 
     // Core systems
-    this.input = new Input();
+    this.touchControls = new TouchControls(canvas);
+    this.input = new Input(this.touchControls);
     this.renderer = new Renderer(canvas);
 
     // Game state
     this.world = new World();
     this.player = new Player(CONFIG.WORLD_WIDTH / 2, 2); // Start at center, near surface
-    this.drillingSystem = new DrillingSystem(this.player, this.world);
+    this.hazards = new Hazards(this.world, this.player);
+    this.drillingSystem = new DrillingSystem(this.player, this.world, this.hazards);
+    this.economy = new Economy(this.player);
+    this.surfaceBase = new SurfaceBase(this.player, this.economy, this);
+    this.surfaceBase.setRenderer(this.renderer); // For debug overlay
 
     // Game loop
     this.running = false;
@@ -26,6 +36,12 @@ export class Game {
     // Fixed timestep
     this.TICK_RATE = 60;
     this.TICK_DURATION = 1000 / this.TICK_RATE;
+
+    // Track last surface state for auto-save
+    this.wasAtSurface = false;
+
+    // Try to load save on startup
+    this.loadGame();
   }
 
   start() {
@@ -58,14 +74,33 @@ export class Game {
   }
 
   update(dt) {
-    // Update player
-    this.player.update(dt, this.input, this.world);
+    // Update touch controls
+    this.touchControls.update();
 
-    // Update drilling system
-    this.drillingSystem.update(dt, this.input);
+    // Update surface base (handles menu interactions)
+    this.surfaceBase.update(this.input, this.touchControls);
+
+    // Only update player and drilling when menu is not open
+    if (!this.surfaceBase.showMenu) {
+      // Update player
+      this.player.update(dt, this.input, this.world);
+
+      // Update drilling system
+      this.drillingSystem.update(dt, this.input);
+
+      // Update hazards (lava damage, etc)
+      this.hazards.update(dt);
+    }
 
     // Update input state (clear pressed/released keys)
     this.input.update();
+
+    // Auto-save when returning to surface
+    const atSurface = this.surfaceBase.isAtSurface();
+    if (atSurface && !this.wasAtSurface) {
+      this.saveGame();
+    }
+    this.wasAtSurface = atSurface;
 
     // Check game over conditions
     if (this.player.fuel <= 0) {
@@ -83,70 +118,44 @@ export class Game {
     // Update camera
     this.renderer.updateCamera(this.player);
 
-    // Render world, player, and HUD
-    this.renderer.render(this.world, this.player, this.drillingSystem);
+    // Render world, player, HUD, touch controls, and surface base menu
+    this.renderer.render(
+      this.world,
+      this.player,
+      this.drillingSystem,
+      this.touchControls,
+      this.surfaceBase
+    );
   }
 
-  // Save/Load methods (for future)
-  save() {
-    const saveData = {
-      version: 1,
-      seed: this.world.seed,
-      player: {
-        x: this.player.x,
-        y: this.player.y,
-        fuel: this.player.fuel,
-        hull: this.player.hull,
-        cargo: this.player.cargo,
-        money: this.player.money,
-        drillLevel: this.player.drillLevel,
-        maxFuel: this.player.maxFuel,
-        maxHull: this.player.maxHull,
-        maxCargo: this.player.maxCargo,
-      },
-      world: {
-        modifiedTiles: this.world.getModifiedTiles(),
-      },
-    };
-
-    localStorage.setItem('marsMiner_save', JSON.stringify(saveData));
-    console.log('Game saved!');
+  // Save/Load methods
+  saveGame() {
+    return SaveManager.save(this);
   }
 
-  load() {
-    const saveJson = localStorage.getItem('marsMiner_save');
-    if (!saveJson) {
-      console.log('No save data found');
-      return false;
-    }
-
-    try {
-      const saveData = JSON.parse(saveJson);
-
+  loadGame() {
+    const saveData = SaveManager.load();
+    if (saveData) {
       // Recreate world with same seed
       this.world = new World(saveData.seed);
-      this.world.applyModifiedTiles(saveData.world.modifiedTiles);
 
-      // Restore player state
-      this.player.x = saveData.player.x;
-      this.player.y = saveData.player.y;
-      this.player.fuel = saveData.player.fuel;
-      this.player.hull = saveData.player.hull;
-      this.player.cargo = saveData.player.cargo;
-      this.player.money = saveData.player.money;
-      this.player.drillLevel = saveData.player.drillLevel;
-      this.player.maxFuel = saveData.player.maxFuel;
-      this.player.maxHull = saveData.player.maxHull;
-      this.player.maxCargo = saveData.player.maxCargo;
+      // Apply save data
+      SaveManager.applySaveData(this, saveData);
 
-      // Recreate drilling system
-      this.drillingSystem = new DrillingSystem(this.player, this.world);
+      // Recreate systems with loaded state
+      this.hazards = new Hazards(this.world, this.player);
+      this.drillingSystem = new DrillingSystem(this.player, this.world, this.hazards);
 
-      console.log('Game loaded!');
       return true;
-    } catch (error) {
-      console.error('Failed to load save:', error);
-      return false;
     }
+    return false;
+  }
+
+  deleteSave() {
+    return SaveManager.deleteSave();
+  }
+
+  hasSave() {
+    return SaveManager.hasSave();
   }
 }

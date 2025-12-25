@@ -1,0 +1,124 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, claude/**]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Verify dist directory
+        run: |
+          echo "Checking dist directory:"
+          ls -la dist/
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install "platform-tools"
+          sdkmanager --install "platforms;android-34"
+          sdkmanager --install "platforms;android-36"
+          sdkmanager --install "build-tools;34.0.0"
+
+      - name: Add Android platform
+        run: |
+          if [ -d "android" ]; then
+            echo "Android directory exists, removing to recreate..."
+            rm -rf android
+          fi
+          echo "Adding Android platform..."
+          npx cap add android
+
+      - name: Apply custom build configuration
+        run: |
+          echo "Restoring custom build.gradle and keystore from git..."
+          git checkout android/app/build.gradle android/app/release.keystore android/variables.gradle || echo "Some files may not exist in git"
+
+          echo "Verifying files:"
+          ls -la android/app/build.gradle || echo "build.gradle not found"
+          ls -la android/app/release.keystore || echo "keystore not found"
+          ls -la android/variables.gradle || echo "variables.gradle not found"
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Verify Android project
+        run: |
+          echo "Android project structure:"
+          ls -la android/
+          echo "Gradlew exists:"
+          ls -la android/gradlew
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mars-miner-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Build Release APK
+        if: success()
+        working-directory: android
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Upload Signed Release APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mars-miner-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Build summary
+        if: always()
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            SIZE=$(ls -lh android/app/build/outputs/apk/debug/app-debug.apk | awk '{print $5}')
+            echo "✅ Debug APK: $SIZE" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Debug APK build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+            SIZE=$(ls -lh android/app/build/outputs/apk/release/app-release.apk | awk '{print $5}')
+            echo "✅ Release APK: $SIZE (signed)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Release APK not built" >> $GITHUB_STEP_SUMMARY
+          fi

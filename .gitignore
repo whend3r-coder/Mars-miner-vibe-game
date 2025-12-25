@@ -6,6 +6,8 @@ dist/
 
 # Capacitor
 android/
+!android/app/build.gradle
+!android/app/release.keystore
 ios/
 .capacitor/
 
