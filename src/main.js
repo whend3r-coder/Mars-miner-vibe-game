@@ -1,25 +1,70 @@
-import { Game } from './core/Game.js';
+import Phaser from 'phaser';
+import { BootScene } from './scenes/BootScene.js';
+import { MenuScene } from './scenes/MenuScene.js';
+import { GameScene } from './scenes/GameScene.js';
+import { UIScene } from './scenes/UIScene.js';
+import { PauseScene } from './scenes/PauseScene.js';
+import { GAME_CONFIG } from './config/GameConfig.js';
 
-// Initialize game when DOM is ready
-window.addEventListener('DOMContentLoaded', () => {
-  const canvas = document.getElementById('gameCanvas');
-  const game = new Game(canvas);
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game-container',
+  backgroundColor: '#1a1a2e',
+  pixelArt: true,
+  antialias: false,
+  roundPixels: true,  // Round sprite positions for crisp pixel art
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: GAME_CONFIG.GAME_WIDTH,
+    height: GAME_CONFIG.GAME_HEIGHT,
+    autoRound: true,
+    zoom: 1,  // Base zoom, FIT will scale from here
+  },
+  render: {
+    pixelArt: true,
+    antialias: false,
+    roundPixels: true,  // Crisp rendering
+  },
+  fps: {
+    target: 60,
+    forceSetTimeOut: false,
+  },
+  physics: {
+    default: 'arcade',
+    arcade: {
+      gravity: { y: GAME_CONFIG.GRAVITY * GAME_CONFIG.TILE_SIZE },
+      debug: false,
+      fps: 60,
+    },
+  },
+  scene: [BootScene, MenuScene, GameScene, UIScene, PauseScene],
+  input: {
+    activePointers: 3, // Support multi-touch
+  },
+};
 
-  // Expose game instance for debugging
-  window.game = game;
+const game = new Phaser.Game(config);
 
-  // Start the game
-  game.start();
+// Force pixelated rendering on canvas
+game.events.once('ready', () => {
+  const canvas = game.canvas;
+  if (canvas) {
+    canvas.style.imageRendering = 'pixelated';
+    canvas.style.imageRendering = 'crisp-edges';
+  }
+});
 
-  console.log('Mars Miner started!');
-  console.log('Controls:');
-  console.log('  Arrow Keys or WASD - Move');
-  console.log('  Down/S - Drill');
-  console.log('  Up/W - Fly (uses more fuel)');
-  console.log('');
-  console.log('Debug commands (in console):');
-  console.log('  game.save() - Save game');
-  console.log('  game.load() - Load game');
-  console.log('  game.player.fuel = 100 - Refill fuel');
-  console.log('  game.player.money += 1000 - Add money');
+// Handle visibility change for mobile
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    game.scene.pause('GameScene');
+  }
+});
+
+// Handle orientation change on mobile - reload to recalculate dimensions
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    window.location.reload();
+  }, 100);
 });

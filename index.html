@@ -2,34 +2,102 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>Mars Miner</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Mars Miner Rover</title>
+  <!-- Google Pixel Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-    body {
-      width: 100vw;
-      height: 100vh;
+    html, body {
+      width: 100%;
+      height: 100%;
       overflow: hidden;
-      background: #000;
+      background: #1a1a2e;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    #game-container {
+      width: 100%;
+      height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
     }
-    #gameCanvas {
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      background: #1a1a1a;
-      border: 2px solid #333;
+    #game-container canvas,
+    canvas {
+      image-rendering: optimizeSpeed !important;
+      image-rendering: -moz-crisp-edges !important;
+      image-rendering: -webkit-optimize-contrast !important;
+      image-rendering: -o-crisp-edges !important;
+      image-rendering: crisp-edges !important;
+      image-rendering: pixelated !important;
+      -ms-interpolation-mode: nearest-neighbor !important;
+    }
+    * {
+      -webkit-font-smoothing: none;
+      text-rendering: optimizeSpeed;
+    }
+    /* Loading screen */
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #c2703a;
+      font-family: monospace;
+      z-index: 1000;
+    }
+    #loading.hidden {
+      display: none;
+    }
+    .loader {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #333;
+      border-top-color: #c2703a;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    #loading p {
+      margin-top: 20px;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
+  <div id="loading">
+    <div class="loader"></div>
+    <p>Loading Mars Miner...</p>
+  </div>
+  <div id="game-container"></div>
   <script type="module" src="/src/main.js"></script>
+  <script>
+    // Hide loading screen when game loads
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('loading').classList.add('hidden');
+      }, 500);
+    });
+  </script>
 </body>
 </html>
