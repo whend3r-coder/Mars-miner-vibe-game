@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, claude/**]
+    branches: [main, claude/**, phaser3-rover-rewrite]
   pull_request:
     branches: [main]
   workflow_dispatch:

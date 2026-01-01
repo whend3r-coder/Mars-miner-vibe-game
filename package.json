@@ -1,8 +1,8 @@
 {
-  "name": "mars-miner",
-  "version": "1.0.0",
+  "name": "mars-miner-rover",
+  "version": "2.0.0",
   "type": "module",
-  "description": "A Motherload-inspired 2D mining game",
+  "description": "A Motherload-inspired 2D rover mining game with Phaser 3",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -19,6 +19,7 @@
   "dependencies": {
     "@capacitor/android": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
-    "@capacitor/core": "^8.0.0"
+    "@capacitor/core": "^8.0.0",
+    "phaser": "^3.80.1"
   }
 }
