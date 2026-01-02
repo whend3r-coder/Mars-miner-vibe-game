@@ -6,6 +6,17 @@ import { UIScene } from './scenes/UIScene.js';
 import { PauseScene } from './scenes/PauseScene.js';
 import { GAME_CONFIG } from './config/GameConfig.js';
 
+// Hide status bar on Android for fullscreen immersive mode
+// Only runs in Capacitor native app, not in browser
+if (window.Capacitor?.isNativePlatform?.()) {
+  // Access StatusBar through Capacitor Plugins (no import needed)
+  const StatusBar = window.Capacitor?.Plugins?.StatusBar;
+  if (StatusBar) {
+    StatusBar.hide();
+    StatusBar.setOverlaysWebView({ overlay: true });
+  }
+}
+
 const config = {
   type: Phaser.AUTO,
   parent: 'game-container',

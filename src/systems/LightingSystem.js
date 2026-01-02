@@ -70,9 +70,9 @@ export class LightingSystem {
     const playerTileY = Math.floor(playerY / GAME_CONFIG.TILE_SIZE);
     const depthBelowSurface = playerTileY - GAME_CONFIG.SURFACE_HEIGHT;
 
-    // Start fading in darkness from 1 tile below surface (earlier and smoother)
+    // Start fading in darkness from 1 tile below surface
     const fadeStartDepth = 1;  // Start darkness at 1 tile underground
-    const fadeEndDepth = 8;    // Full darkness at 8 tiles underground
+    const fadeEndDepth = 5;    // Full darkness at 5 tiles underground
 
     if (depthBelowSurface <= 0) {
       // On or above surface - fade out darkness

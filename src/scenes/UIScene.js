@@ -124,10 +124,12 @@ export class UIScene extends Phaser.Scene {
     // Bottom: Item hotbar
     this.createHotbar();
 
-    // Building prompt
+    // Building prompt (interactive on mobile)
     const promptY = height - Math.floor(100 * scale);
-    this.buildingPromptBg = this.add.rectangle(cx, promptY, Math.floor(120 * scale), Math.floor(30 * scale), 0x000000, 0.7)
-      .setVisible(false);
+    this.buildingPromptBg = this.add.rectangle(cx, promptY, Math.floor(150 * scale), Math.floor(40 * scale), 0x000000, 0.8)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.onBuildingPromptTap());
     this.hudContainer.add(this.buildingPromptBg);
 
     this.buildingPrompt = this.add.bitmapText(cx, promptY, 'pixel', '', smallFont)
@@ -135,6 +137,8 @@ export class UIScene extends Phaser.Scene {
       .setTint(0xffffff)
       .setVisible(false);
     this.hudContainer.add(this.buildingPrompt);
+
+    this.currentBuildingType = null;
   }
 
   createHotbar() {
@@ -221,17 +225,21 @@ export class UIScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setTint(0xffffff);
 
-    // Joystick touch handling
+    // Joystick touch handling - track specific pointer ID for multi-touch
+    this.joystickPointerId = null;
+
     this.input.on('pointerdown', (pointer) => {
-      if (pointer.x < GAME_CONFIG.GAME_WIDTH / 3) {
-        this.joystickActive = true;
+      // Only capture joystick if in left third and no joystick active
+      if (pointer.x < GAME_CONFIG.GAME_WIDTH / 3 && this.joystickPointerId === null) {
+        this.joystickPointerId = pointer.id;
         this.joystickStartX = pointer.x;
         this.joystickStartY = pointer.y;
       }
     });
 
     this.input.on('pointermove', (pointer) => {
-      if (this.joystickActive) {
+      // Only respond to the joystick pointer
+      if (pointer.id === this.joystickPointerId) {
         const dx = pointer.x - this.joystickStartX;
         const dy = pointer.y - this.joystickStartY;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -252,14 +260,17 @@ export class UIScene extends Phaser.Scene {
       }
     });
 
-    this.input.on('pointerup', () => {
-      this.joystickActive = false;
-      this.joystickThumb.x = this.joystickBase.x;
-      this.joystickThumb.y = this.joystickBase.y;
-      gameScene.touchControls.left = false;
-      gameScene.touchControls.right = false;
-      gameScene.touchControls.up = false;
-      gameScene.touchControls.down = false;
+    this.input.on('pointerup', (pointer) => {
+      // Only reset joystick if THIS pointer was the joystick
+      if (pointer.id === this.joystickPointerId) {
+        this.joystickPointerId = null;
+        this.joystickThumb.x = this.joystickBase.x;
+        this.joystickThumb.y = this.joystickBase.y;
+        gameScene.touchControls.left = false;
+        gameScene.touchControls.right = false;
+        gameScene.touchControls.up = false;
+        gameScene.touchControls.down = false;
+      }
     });
 
     // Pause button - rectangle bg + bitmapText
@@ -324,10 +335,14 @@ export class UIScene extends Phaser.Scene {
   }
 
   showBuildingPrompt(buildingType) {
+    const isMobile = this.sys.game.device.input.touch;
+    const gameScene = this.scene.get('GameScene');
+
     if (buildingType === 'shop') {
-      this.buildingPrompt.setText('E: SHOP');
+      this.buildingPrompt.setText(isMobile ? 'TAP: SHOP' : 'E: SHOP');
       this.buildingPrompt.setVisible(true);
       this.buildingPromptBg.setVisible(true);
+      this.currentBuildingType = 'shop';
 
       // Auto-hide after 2 seconds
       this.time.delayedCall(2000, () => {
@@ -335,14 +350,29 @@ export class UIScene extends Phaser.Scene {
         this.buildingPromptBg.setVisible(false);
       });
     } else if (buildingType === 'repair') {
-      this.buildingPrompt.setText('E: REPAIR');
+      this.buildingPrompt.setText(isMobile ? 'TAP: REPAIR' : 'E: REPAIR');
       this.buildingPrompt.setVisible(true);
       this.buildingPromptBg.setVisible(true);
+      this.currentBuildingType = 'repair';
 
       this.time.delayedCall(2000, () => {
         this.buildingPrompt.setVisible(false);
         this.buildingPromptBg.setVisible(false);
       });
+    }
+  }
+
+  onBuildingPromptTap() {
+    if (!this.buildingPrompt.visible) return;
+
+    const gameScene = this.scene.get('GameScene');
+    if (!gameScene) return;
+
+    if (this.currentBuildingType === 'shop' && gameScene.nearShop) {
+      gameScene.sellCargoAtShop();
+      gameScene.openShop();
+    } else if (this.currentBuildingType === 'repair' && gameScene.nearRepair) {
+      gameScene.repairAtShop();
     }
   }
 
