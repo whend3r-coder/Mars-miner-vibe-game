@@ -195,12 +195,14 @@ export class UIScene extends Phaser.Scene {
 
     const gameScene = this.scene.get('GameScene');
 
-    // Virtual joystick area (left side) - not scaled, stays fixed size for usability
-    this.joystickBase = this.add.circle(70, GAME_CONFIG.GAME_HEIGHT - 70, 40, 0x444444, 0.5);
-    this.joystickThumb = this.add.circle(70, GAME_CONFIG.GAME_HEIGHT - 70, 20, 0xffffff, 0.7);
+    // Virtual joystick area (left side) - bigger and moved up for better reach
+    const joystickY = GAME_CONFIG.GAME_HEIGHT - 120;
+    this.joystickBase = this.add.circle(90, joystickY, 60, 0x444444, 0.5);
+    this.joystickThumb = this.add.circle(90, joystickY, 28, 0xffffff, 0.7);
 
-    // Drill button (main action - large)
-    const drillBtn = this.add.circle(GAME_CONFIG.GAME_WIDTH - 60, GAME_CONFIG.GAME_HEIGHT - 70, 36, 0xff6600, 0.8)
+    // Drill/Mine button (main action - bigger)
+    const mineY = GAME_CONFIG.GAME_HEIGHT - 90;
+    const drillBtn = this.add.circle(GAME_CONFIG.GAME_WIDTH - 70, mineY, 55, 0xff6600, 0.8)
       .setInteractive()
       .on('pointerdown', () => {
         gameScene.touchControls.drill = true;
@@ -215,27 +217,7 @@ export class UIScene extends Phaser.Scene {
         drillBtn.setFillStyle(0xff6600, 0.8);
       });
 
-    this.add.bitmapText(GAME_CONFIG.GAME_WIDTH - 60, GAME_CONFIG.GAME_HEIGHT - 70, 'pixel', 'MINE', 10)
-      .setOrigin(0.5)
-      .setTint(0xffffff);
-
-    // Jump button
-    const jumpBtn = this.add.circle(GAME_CONFIG.GAME_WIDTH - 130, GAME_CONFIG.GAME_HEIGHT - 100, 24, 0x4466ff, 0.7)
-      .setInteractive()
-      .on('pointerdown', () => {
-        gameScene.touchControls.up = true;
-        jumpBtn.setFillStyle(0x6688ff, 1);
-      })
-      .on('pointerup', () => {
-        gameScene.touchControls.up = false;
-        jumpBtn.setFillStyle(0x4466ff, 0.7);
-      })
-      .on('pointerout', () => {
-        gameScene.touchControls.up = false;
-        jumpBtn.setFillStyle(0x4466ff, 0.7);
-      });
-
-    this.add.bitmapText(GAME_CONFIG.GAME_WIDTH - 130, GAME_CONFIG.GAME_HEIGHT - 100, 'pixel', 'UP', 10)
+    this.add.bitmapText(GAME_CONFIG.GAME_WIDTH - 70, mineY, 'pixel', 'MINE', 20)
       .setOrigin(0.5)
       .setTint(0xffffff);
 
@@ -253,7 +235,7 @@ export class UIScene extends Phaser.Scene {
         const dx = pointer.x - this.joystickStartX;
         const dy = pointer.y - this.joystickStartY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxDist = 40;
+        const maxDist = 60;
 
         const clampedDist = Math.min(dist, maxDist);
         const angle = Math.atan2(dy, dx);
@@ -261,10 +243,11 @@ export class UIScene extends Phaser.Scene {
         this.joystickThumb.x = this.joystickBase.x + Math.cos(angle) * clampedDist;
         this.joystickThumb.y = this.joystickBase.y + Math.sin(angle) * clampedDist;
 
-        // Update touch controls
-        const threshold = 16;
+        // Update touch controls - includes up for climbing
+        const threshold = 20;
         gameScene.touchControls.left = dx < -threshold;
         gameScene.touchControls.right = dx > threshold;
+        gameScene.touchControls.up = dy < -threshold;
         gameScene.touchControls.down = dy > threshold;
       }
     });
@@ -275,6 +258,7 @@ export class UIScene extends Phaser.Scene {
       this.joystickThumb.y = this.joystickBase.y;
       gameScene.touchControls.left = false;
       gameScene.touchControls.right = false;
+      gameScene.touchControls.up = false;
       gameScene.touchControls.down = false;
     });
 

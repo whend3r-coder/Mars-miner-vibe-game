@@ -72,6 +72,9 @@ export class Rover {
     // Solar panel state
     this.solarState = 'retracted'; // 'retracted', 'deploying', 'deployed', 'retracting'
     this.solarPanelsOut = false;   // True when panels are fully deployed (can charge)
+
+    // Surface charged lock - when fully charged on surface, battery stays locked
+    this.surfaceChargeLocked = false;
   }
 
   update(time, delta, input) {
@@ -86,11 +89,24 @@ export class Rover {
 
     // Check if on surface for recharging (at or above surface level)
     const isOnSurface = this.sprite.y <= (GAME_CONFIG.SURFACE_HEIGHT + 1) * GAME_CONFIG.TILE_SIZE;
+    const isUnderground = this.sprite.y > (GAME_CONFIG.SURFACE_HEIGHT + 2) * GAME_CONFIG.TILE_SIZE;
+
+    // Unlock battery when going underground
+    if (isUnderground && this.surfaceChargeLocked) {
+      this.surfaceChargeLocked = false;
+    }
+
+    // If surface charge locked, keep battery at max
+    if (this.surfaceChargeLocked && isOnSurface) {
+      this.battery = this.maxBattery;
+    }
+
+    // Only start charging if not drilling, standing still on surface, and battery not full
     const isStandingStill = this.isGrounded && Math.abs(this.sprite.body.velocity.x) < 10;
-    const canStartCharging = isOnSurface && isStandingStill && this.battery < this.maxBattery && !this.isDrilling;
+    const canStartCharging = isOnSurface && isStandingStill && this.battery < this.maxBattery && !this.isDrilling && !this.surfaceChargeLocked;
 
     // Handle solar panel deployment and recharging
-    this.updateSolarPanels(canStartCharging, dt);
+    this.updateSolarPanels(canStartCharging, dt, isOnSurface);
 
     // Check for climbing (ladder tiles)
     this.checkClimbing();
@@ -228,7 +244,7 @@ export class Rover {
     return (feetTile && feetTile.climbable) || (centerTile && centerTile.climbable);
   }
 
-  updateSolarPanels(canStartCharging, dt) {
+  updateSolarPanels(canStartCharging, dt, isOnSurface) {
     // If we should be charging and panels are retracted, start deploying
     if (canStartCharging && this.solarState === 'retracted') {
       this.solarState = 'deploying';
@@ -250,8 +266,9 @@ export class Rover {
       this.isRecharging = false;
     }
 
-    // Check if battery is full
-    if (this.battery >= this.maxBattery && this.solarState === 'deployed') {
+    // Check if battery is full - lock it and retract panels
+    if (this.battery >= this.maxBattery && this.solarState === 'deployed' && isOnSurface) {
+      this.surfaceChargeLocked = true;  // Lock battery to full while on surface
       this.solarState = 'retracting';
       this.solarPanelsOut = false;
       this.isRecharging = false;
@@ -260,6 +277,9 @@ export class Rover {
 
   updateBatteryDrain(input, dt) {
     if (this.isRecharging) return;
+
+    // Surface charge locked - no drain while on surface
+    if (this.surfaceChargeLocked) return;
 
     // Dev mode: infinite battery
     if (this.scene.registry.get('devMode')) {

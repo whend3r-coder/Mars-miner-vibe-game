@@ -127,6 +127,13 @@ export class DrillSystem {
     this.rover.isDrilling = true;
     this.rover.drillDirection = this.drillDirection;
 
+    // Force retract solar panels when drilling
+    if (this.rover.solarState !== 'retracted') {
+      this.rover.solarState = 'retracting';
+      this.rover.solarPanelsOut = false;
+      this.rover.isRecharging = false;
+    }
+
     // Calculate drill speed
     const drillSpeedLevel = gameData?.upgrades?.drillSpeed || 0;
     const speedMultiplier = UPGRADES.drillSpeed.levels[drillSpeedLevel].multiplier;

@@ -68,22 +68,25 @@ export class LightingSystem {
     if (!this.enabled || !this.overlay) return;
 
     const playerTileY = Math.floor(playerY / GAME_CONFIG.TILE_SIZE);
-    const isOnSurface = playerTileY <= GAME_CONFIG.SURFACE_HEIGHT + 2;
+    const depthBelowSurface = playerTileY - GAME_CONFIG.SURFACE_HEIGHT;
 
-    if (isOnSurface) {
-      // Fade out darkness on surface
+    // Start fading in darkness from 1 tile below surface (earlier and smoother)
+    const fadeStartDepth = 1;  // Start darkness at 1 tile underground
+    const fadeEndDepth = 8;    // Full darkness at 8 tiles underground
+
+    if (depthBelowSurface <= 0) {
+      // On or above surface - fade out darkness
       const currentAlpha = this.overlay.alpha;
       const newAlpha = currentAlpha * 0.85;
       this.overlay.setAlpha(newAlpha < 0.01 ? 0 : newAlpha);
     } else {
-      // Gradually increase darkness as player goes deeper
-      const depthBelowSurface = playerTileY - GAME_CONFIG.SURFACE_HEIGHT;
-      const maxDepthForFullDark = 5;
-      const targetAlpha = Math.min(1, depthBelowSurface / maxDepthForFullDark);
+      // Underground - gradually increase darkness
+      const fadeProgress = (depthBelowSurface - fadeStartDepth) / (fadeEndDepth - fadeStartDepth);
+      const targetAlpha = Math.max(0, Math.min(1, fadeProgress));
 
-      // Smooth transition
+      // Smoother transition
       const currentAlpha = this.overlay.alpha;
-      const newAlpha = currentAlpha + (targetAlpha - currentAlpha) * 0.1;
+      const newAlpha = currentAlpha + (targetAlpha - currentAlpha) * 0.08;
       this.overlay.setAlpha(newAlpha);
     }
 
