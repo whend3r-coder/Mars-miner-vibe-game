@@ -11,6 +11,9 @@ export class UIScene extends Phaser.Scene {
     // Get HUD zoom scale
     this.hudScale = this.registry.get('hudZoom') || 1;
 
+    // Track touch control elements for cleanup
+    this.touchElements = [];
+
     // HUD elements
     this.createHUD();
 
@@ -44,6 +47,30 @@ export class UIScene extends Phaser.Scene {
       this.hudContainer.destroy(true);
     }
     this.createHUD();
+  }
+
+  shutdown() {
+    // Clean up event listeners when scene is stopped
+    this.registry.events.off('changedata-hudZoom', this.onHudZoomChange, this);
+
+    const gameScene = this.scene.get('GameScene');
+    if (gameScene && gameScene.events) {
+      gameScene.events.off('gameUpdate', this.updateHUD, this);
+      gameScene.events.off('nearBuilding', this.showBuildingPrompt, this);
+    }
+
+    // Clean up input listeners
+    if (this.joystickDownHandler) {
+      this.input.off('pointerdown', this.joystickDownHandler);
+      this.input.off('pointermove', this.joystickMoveHandler);
+      this.input.off('pointerup', this.joystickUpHandler);
+    }
+
+    // Clean up touch elements
+    if (this.touchElements) {
+      this.touchElements.forEach(el => el.destroy());
+      this.touchElements = [];
+    }
   }
 
   createHUD() {
@@ -107,6 +134,18 @@ export class UIScene extends Phaser.Scene {
       .setOrigin(1, 0)
       .setTint(0xaaaaaa);
     this.hudContainer.add(this.cargoText);
+
+    // Map button below cargo
+    const mapBtnY = padding + Math.floor(50 * scale);
+    const mapBtnBg = this.add.rectangle(width - padding - Math.floor(25 * scale), mapBtnY, Math.floor(50 * scale), Math.floor(20 * scale), 0x334455)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.openMap());
+    this.hudContainer.add(mapBtnBg);
+
+    const mapBtnText = this.add.bitmapText(width - padding - Math.floor(25 * scale), mapBtnY, 'pixel', 'MAP', smallFont)
+      .setOrigin(0.5)
+      .setTint(0x88ccff);
+    this.hudContainer.add(mapBtnText);
 
     // Top-center: Depth indicator
     this.depthText = this.add.bitmapText(cx, padding, 'pixel', 'Surface', smallFont)
@@ -203,6 +242,7 @@ export class UIScene extends Phaser.Scene {
     const joystickY = GAME_CONFIG.GAME_HEIGHT - 120;
     this.joystickBase = this.add.circle(90, joystickY, 60, 0x444444, 0.5);
     this.joystickThumb = this.add.circle(90, joystickY, 28, 0xffffff, 0.7);
+    this.touchElements.push(this.joystickBase, this.joystickThumb);
 
     // Drill/Mine button (main action - bigger)
     const mineY = GAME_CONFIG.GAME_HEIGHT - 90;
@@ -220,25 +260,26 @@ export class UIScene extends Phaser.Scene {
         gameScene.touchControls.drill = false;
         drillBtn.setFillStyle(0xff6600, 0.8);
       });
+    this.touchElements.push(drillBtn);
 
-    this.add.bitmapText(GAME_CONFIG.GAME_WIDTH - 70, mineY, 'pixel', 'MINE', 20)
+    const mineLabel = this.add.bitmapText(GAME_CONFIG.GAME_WIDTH - 70, mineY, 'pixel', 'MINE', 20)
       .setOrigin(0.5)
       .setTint(0xffffff);
+    this.touchElements.push(mineLabel);
 
     // Joystick touch handling - track specific pointer ID for multi-touch
     this.joystickPointerId = null;
 
-    this.input.on('pointerdown', (pointer) => {
-      // Only capture joystick if in left third and no joystick active
+    // Store bound handlers for cleanup
+    this.joystickDownHandler = (pointer) => {
       if (pointer.x < GAME_CONFIG.GAME_WIDTH / 3 && this.joystickPointerId === null) {
         this.joystickPointerId = pointer.id;
         this.joystickStartX = pointer.x;
         this.joystickStartY = pointer.y;
       }
-    });
+    };
 
-    this.input.on('pointermove', (pointer) => {
-      // Only respond to the joystick pointer
+    this.joystickMoveHandler = (pointer) => {
       if (pointer.id === this.joystickPointerId) {
         const dx = pointer.x - this.joystickStartX;
         const dy = pointer.y - this.joystickStartY;
@@ -251,17 +292,15 @@ export class UIScene extends Phaser.Scene {
         this.joystickThumb.x = this.joystickBase.x + Math.cos(angle) * clampedDist;
         this.joystickThumb.y = this.joystickBase.y + Math.sin(angle) * clampedDist;
 
-        // Update touch controls - includes up for climbing
         const threshold = 20;
         gameScene.touchControls.left = dx < -threshold;
         gameScene.touchControls.right = dx > threshold;
         gameScene.touchControls.up = dy < -threshold;
         gameScene.touchControls.down = dy > threshold;
       }
-    });
+    };
 
-    this.input.on('pointerup', (pointer) => {
-      // Only reset joystick if THIS pointer was the joystick
+    this.joystickUpHandler = (pointer) => {
       if (pointer.id === this.joystickPointerId) {
         this.joystickPointerId = null;
         this.joystickThumb.x = this.joystickBase.x;
@@ -271,19 +310,25 @@ export class UIScene extends Phaser.Scene {
         gameScene.touchControls.up = false;
         gameScene.touchControls.down = false;
       }
-    });
+    };
 
-    // Pause button - rectangle bg + bitmapText
-    const pauseBg = this.add.rectangle(GAME_CONFIG.GAME_WIDTH - 24, 68, 40, 24, 0x333333)
+    this.input.on('pointerdown', this.joystickDownHandler);
+    this.input.on('pointermove', this.joystickMoveHandler);
+    this.input.on('pointerup', this.joystickUpHandler);
+
+    // Pause button - rectangle bg + bitmapText (positioned below cargo text)
+    const pauseBg = this.add.rectangle(GAME_CONFIG.GAME_WIDTH - 24, 110, 40, 28, 0x333333)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => {
         this.scene.launch('PauseScene');
         this.scene.pause('GameScene');
       });
+    this.touchElements.push(pauseBg);
 
-    this.add.bitmapText(GAME_CONFIG.GAME_WIDTH - 24, 68, 'pixel', 'II', 10)
+    const pauseLabel = this.add.bitmapText(GAME_CONFIG.GAME_WIDTH - 24, 110, 'pixel', 'II', 10)
       .setOrigin(0.5)
       .setTint(0xffffff);
+    this.touchElements.push(pauseLabel);
   }
 
   updateHUD(data) {
@@ -382,5 +427,14 @@ export class UIScene extends Phaser.Scene {
 
   showRepairUI() {
     // Implementation for repair UI overlay
+  }
+
+  openMap() {
+    // Pause game and show map scene
+    const gameScene = this.scene.get('GameScene');
+    if (gameScene) {
+      this.scene.pause('GameScene');
+      this.scene.launch('MapScene');
+    }
   }
 }

@@ -4,6 +4,50 @@ import { TILE_TYPES } from '../config/TileTypes.js';
 export class WorldGenerator {
   constructor(seed) {
     this.seed = seed;
+    this.pitfalls = new Map();  // Store pitfall locations
+    this.generatePitfalls();
+  }
+
+  // Generate pitfall locations deterministically from seed
+  generatePitfalls() {
+    const pitfallCount = 30;  // Number of pitfalls in the world
+
+    for (let i = 0; i < pitfallCount; i++) {
+      // Use seed to deterministically place pitfalls
+      const rand1 = this.seededRandom(i * 123 + 456);
+      const rand2 = this.seededRandom(i * 789 + 101);
+      const rand3 = this.seededRandom(i * 234 + 567);
+      const rand4 = this.seededRandom(i * 345 + 678);
+
+      // X position: anywhere in mining area
+      const x = Math.floor(GAME_CONFIG.CAVE_ENTRANCE_X - 5 + rand1 * (GAME_CONFIG.SURFACE_START_X - GAME_CONFIG.CAVE_ENTRANCE_X + 5));
+
+      // Y position: start at depth 50+ (y = surface + 50)
+      const minDepth = 50;
+      const maxDepth = 400;
+      const startY = GAME_CONFIG.SURFACE_HEIGHT + minDepth + Math.floor(rand2 * (maxDepth - minDepth));
+
+      // Pitfall depth: 4-8 tiles
+      const depth = 4 + Math.floor(rand3 * 5);  // 4, 5, 6, 7, or 8
+
+      // Crystal at bottom: 75% chance
+      const hasCrystal = rand4 < 0.75;
+
+      // Store pitfall data
+      for (let dy = 0; dy < depth; dy++) {
+        const key = `${x},${startY + dy}`;
+        this.pitfalls.set(key, {
+          isBottom: dy === depth - 1,
+          hasCrystal: dy === depth - 1 && hasCrystal
+        });
+      }
+    }
+  }
+
+  // Seeded random for pitfall generation
+  seededRandom(n) {
+    const x = Math.sin(this.seed + n) * 43758.5453;
+    return x - Math.floor(x);
   }
 
   // Simple seeded random number generator
@@ -57,50 +101,75 @@ export class WorldGenerator {
       // This allows wide horizontal mining once you go down
     }
 
+    // === CHECK FOR PITFALLS ===
+    const pitfallKey = `${x},${y}`;
+    if (this.pitfalls.has(pitfallKey)) {
+      const pitfallData = this.pitfalls.get(pitfallKey);
+      if (pitfallData.hasCrystal) {
+        return TILE_TYPES.crystal.id;  // Crystal at bottom of pitfall
+      }
+      return TILE_TYPES.air.id;  // Empty pitfall shaft
+    }
+
     // === UNDERGROUND MINING AREA ===
     const depth = y - surfaceY;
     const rand = this.random(x, y);
 
+    // Boulder spawning - starts at depth 30, increases with depth
+    // Boulders spawn where there would normally be rock/hardRock
+    const boulderChance = this.getBoulderChance(depth);
+    const boulderRand = this.random(x + 1000, y + 1000);  // Different seed for boulders
+    if (boulderRand < boulderChance) {
+      return TILE_TYPES.boulder.id;
+    }
+
     // Layer 1: Shallow (0-50) - Dirt, Coal, Copper
     if (depth < 50) {
-      if (rand < 0.02) return TILE_TYPES.coal.id;
-      if (rand < 0.04) return TILE_TYPES.copper.id;
+      if (rand < 0.04) return TILE_TYPES.coal.id;       // 4% (was 2%)
+      if (rand < 0.08) return TILE_TYPES.copper.id;     // 4% (was 2%)
       return TILE_TYPES.dirt.id;
     }
 
     // Layer 2: Medium (50-150) - Rock, Iron, Silver, Gold
     if (depth < 150) {
-      if (rand < 0.015) return TILE_TYPES.iron.id;
-      if (rand < 0.03) return TILE_TYPES.silver.id;
-      if (rand < 0.04) return TILE_TYPES.gold.id;
-      if (rand < 0.08) return TILE_TYPES.dirt.id;
+      if (rand < 0.03) return TILE_TYPES.iron.id;       // 3% (was 1.5%)
+      if (rand < 0.06) return TILE_TYPES.silver.id;     // 3% (was 1.5%)
+      if (rand < 0.09) return TILE_TYPES.gold.id;       // 3% (was 1%)
+      if (rand < 0.14) return TILE_TYPES.dirt.id;
       return TILE_TYPES.rock.id;
     }
 
     // Layer 3: Deep (150-300) - Hard Rock, Gold, Platinum, Ruby, Gas
     if (depth < 300) {
-      if (rand < 0.01) return TILE_TYPES.gold.id;
-      if (rand < 0.025) return TILE_TYPES.platinum.id;
-      if (rand < 0.035) return TILE_TYPES.ruby.id;
-      if (rand < 0.05) return TILE_TYPES.gas.id;
-      if (rand < 0.15) return TILE_TYPES.rock.id;
+      if (rand < 0.025) return TILE_TYPES.gold.id;      // 2.5% (was 1%)
+      if (rand < 0.055) return TILE_TYPES.platinum.id;  // 3% (was 1.5%)
+      if (rand < 0.085) return TILE_TYPES.ruby.id;      // 3% (was 1%)
+      if (rand < 0.10) return TILE_TYPES.gas.id;        // reduced gas
+      if (rand < 0.20) return TILE_TYPES.rock.id;
       return TILE_TYPES.hardRock.id;
     }
 
     // Layer 4: Very Deep (300-400) - Emerald, Diamond, Lava
     if (depth < 400) {
-      if (rand < 0.015) return TILE_TYPES.emerald.id;
-      if (rand < 0.03) return TILE_TYPES.diamond.id;
-      if (rand < 0.06) return TILE_TYPES.lava.id;
-      if (rand < 0.08) return TILE_TYPES.gas.id;
+      if (rand < 0.03) return TILE_TYPES.emerald.id;    // 3% (was 1.5%)
+      if (rand < 0.07) return TILE_TYPES.diamond.id;    // 4% (was 1.5%)
+      if (rand < 0.10) return TILE_TYPES.lava.id;       // 3% lava
+      if (rand < 0.12) return TILE_TYPES.gas.id;        // 2% gas
       return TILE_TYPES.hardRock.id;
     }
 
     // Layer 5: Ancient (400+) - Diamond, Lava, Hard Rock
-    if (rand < 0.025) return TILE_TYPES.diamond.id;
-    if (rand < 0.08) return TILE_TYPES.lava.id;
-    if (rand < 0.1) return TILE_TYPES.gas.id;
+    if (rand < 0.05) return TILE_TYPES.diamond.id;      // 5% (was 2.5%)
+    if (rand < 0.10) return TILE_TYPES.lava.id;
+    if (rand < 0.12) return TILE_TYPES.gas.id;
     return TILE_TYPES.hardRock.id;
+  }
+
+  // Boulder spawn chance based on depth
+  getBoulderChance(depth) {
+    // Boulders spawn from the very beginning at 7%
+    if (depth < 0) return 0;            // Only in sky area (shouldn't happen)
+    return 0.07;                         // 7% everywhere underground
   }
 
   // Simple 2D noise for potential cave generation

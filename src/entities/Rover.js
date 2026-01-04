@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG, UPGRADES } from '../config/GameConfig.js';
 
+// Rover sprite size (different from TILE_SIZE now)
+const ROVER_SIZE = 128;
+
 export class Rover {
   constructor(scene, x, y) {
     this.scene = scene;
@@ -14,6 +17,7 @@ export class Rover {
     this.maxHull = UPGRADES.hullArmor.levels[upgrades.hullArmor || 0].hp;
     this.maxCargo = UPGRADES.cargoBay.levels[upgrades.cargoBay || 0].slots;
     this.hasThrusters = UPGRADES.thrusters.levels[upgrades.thrusters || 0].enabled;
+    this.speedMultiplier = UPGRADES.movementSpeed.levels[upgrades.movementSpeed || 0].multiplier;
 
     // Current stats
     this.battery = this.maxBattery;
@@ -40,11 +44,14 @@ export class Rover {
     this.currentSpriteMode = 'normal';  // 'normal' or 'drill'
     this.sprite.setCollideWorldBounds(true);
 
-    // Set collision box - wider to prevent wheel clipping into walls
-    const bodyWidth = GAME_CONFIG.TILE_SIZE * 0.96;  // Nearly full width
-    const bodyHeight = GAME_CONFIG.TILE_SIZE * 0.7;
+    // Set collision box - keep original working formula
+    const bodyWidth = 128 * 0.96;  // ~123px (rover is 128x128)
+    const bodyHeight = 128 * 0.7;  // ~90px
     this.sprite.setSize(bodyWidth, bodyHeight);
-    this.sprite.setOffset((GAME_CONFIG.TILE_SIZE - bodyWidth) / 2, GAME_CONFIG.TILE_SIZE - bodyHeight);
+    // Offset adjusted for 140px tiles (rover is 128px, 8px total down shift)
+    const offsetX = (128 - bodyWidth) / 2;  // ~2.5
+    const offsetY = 128 - bodyHeight + 2;   // sprite appears 8px lower total
+    this.sprite.setOffset(offsetX, offsetY);
     this.sprite.setDepth(10);
 
     // Physics properties
@@ -64,6 +71,7 @@ export class Rover {
     this.facingRight = true;
     this.isUsingThrusters = false;
     this.movementDirection = 'side'; // 'side', 'front', 'back'
+    this.isOnElevator = false;  // Set by ElevatorSystem when riding
 
     // Fall damage tracking
     this.fallStartY = null;
@@ -153,7 +161,7 @@ export class Rover {
   }
 
   handleMovement(input, dt) {
-    const speed = GAME_CONFIG.MOVE_SPEED;
+    const speed = GAME_CONFIG.MOVE_SPEED * this.speedMultiplier;
     this.isUsingThrusters = false;
 
     // Don't allow movement while drilling
@@ -167,6 +175,13 @@ export class Rover {
       this.sprite.setVelocityX(-speed);
     } else if (input.right) {
       this.sprite.setVelocityX(speed);
+    }
+
+    // When on elevator - allow horizontal movement to walk off, but skip vertical controls
+    if (this.isOnElevator) {
+      this.sprite.body.setAllowGravity(false);
+      // Don't return - let horizontal movement happen above, just skip climbing/jumping below
+      return;
     }
 
     // Climbing
@@ -294,6 +309,11 @@ export class Rover {
       drain += GAME_CONFIG.BATTERY_MOVE;
     }
 
+    // Climbing drains battery (only when actively moving up/down)
+    if (this.isClimbing && (input.up || input.down)) {
+      drain += GAME_CONFIG.BATTERY_CLIMB;
+    }
+
     // Drilling drains battery
     if (this.isDrilling) {
       drain += GAME_CONFIG.BATTERY_DRILL;
@@ -365,22 +385,22 @@ export class Rover {
 
             // Adjust physics body offset for larger sprites
             // Rover is centered in the larger sprite, so add padding offset
-            const bodyWidth = GAME_CONFIG.TILE_SIZE * 0.96;
-            const bodyHeight = GAME_CONFIG.TILE_SIZE * 0.7;
+            const bodyWidth = ROVER_SIZE * 0.96;
+            const bodyHeight = ROVER_SIZE * 0.7;
 
             if (this.drillDirection === 'left' || this.drillDirection === 'right') {
               // Side drill: 254x128 - only X padding
-              const xPadding = (254 - GAME_CONFIG.TILE_SIZE) / 2;  // 63 pixels
+              const xPadding = (254 - ROVER_SIZE) / 2;  // 63 pixels
               this.sprite.body.setOffset(
-                xPadding + (GAME_CONFIG.TILE_SIZE - bodyWidth) / 2,
-                GAME_CONFIG.TILE_SIZE - bodyHeight  // No Y padding
+                xPadding + (ROVER_SIZE - bodyWidth) / 2,
+                ROVER_SIZE - bodyHeight + 2  // +2 for visual offset
               );
             } else {
               // Up/Down drill: 254x254 - both X and Y padding
-              const padding = (254 - GAME_CONFIG.TILE_SIZE) / 2;  // 63 pixels
+              const padding = (254 - ROVER_SIZE) / 2;  // 63 pixels
               this.sprite.body.setOffset(
-                padding + (GAME_CONFIG.TILE_SIZE - bodyWidth) / 2,
-                padding + GAME_CONFIG.TILE_SIZE - bodyHeight
+                padding + (ROVER_SIZE - bodyWidth) / 2,
+                padding + ROVER_SIZE - bodyHeight + 2  // +2 for visual offset
               );
             }
           }
@@ -401,12 +421,12 @@ export class Rover {
           this.sprite.setFlipX(false);
 
           // Adjust physics body offset for 254x254 sprite
-          const bodyWidth = GAME_CONFIG.TILE_SIZE * 0.96;
-          const bodyHeight = GAME_CONFIG.TILE_SIZE * 0.7;
-          const padding = (254 - GAME_CONFIG.TILE_SIZE) / 2;
+          const bodyWidth = ROVER_SIZE * 0.96;
+          const bodyHeight = ROVER_SIZE * 0.7;
+          const padding = (254 - ROVER_SIZE) / 2;
           this.sprite.body.setOffset(
-            padding + (GAME_CONFIG.TILE_SIZE - bodyWidth) / 2,
-            padding + GAME_CONFIG.TILE_SIZE - bodyHeight
+            padding + (ROVER_SIZE - bodyWidth) / 2,
+            padding + ROVER_SIZE - bodyHeight + 2  // +2 for visual offset
           );
         }
 
@@ -450,11 +470,11 @@ export class Rover {
           this.currentSpriteMode = 'normal';
 
           // Reset physics body offset for normal 128x128 sprite
-          const bodyWidth = GAME_CONFIG.TILE_SIZE * 0.96;
-          const bodyHeight = GAME_CONFIG.TILE_SIZE * 0.7;
+          const bodyWidth = ROVER_SIZE * 0.96;
+          const bodyHeight = ROVER_SIZE * 0.7;
           this.sprite.body.setOffset(
-            (GAME_CONFIG.TILE_SIZE - bodyWidth) / 2,
-            GAME_CONFIG.TILE_SIZE - bodyHeight
+            (ROVER_SIZE - bodyWidth) / 2,
+            ROVER_SIZE - bodyHeight + 2  // +2 for visual offset
           );
         }
 
@@ -570,14 +590,18 @@ export class Rover {
   }
 
   rescueRover() {
+    // Check if dev mode is enabled (keep cargo in dev mode)
+    const devMode = this.scene.registry.get('devMode') === true;
+
     // Show message
+    const message = devMode ? 'RESCUED - DEV MODE' : 'RESCUED - CARGO LOST!';
     const msg = this.scene.add.bitmapText(
       Math.floor(this.sprite.x),
       Math.floor(this.sprite.y - 20),
       'pixel',
-      'RESCUED - CARGO LOST!',
+      message,
       10
-    ).setOrigin(0.5).setTint(0xff4444).setDepth(100);
+    ).setOrigin(0.5).setTint(devMode ? 0xffff44 : 0xff4444).setDepth(100);
 
     this.scene.tweens.add({
       targets: msg,
@@ -587,8 +611,10 @@ export class Rover {
       onComplete: () => msg.destroy()
     });
 
-    // Lose cargo!
-    this.cargo = [];
+    // Lose cargo in normal mode only!
+    if (!devMode) {
+      this.cargo = [];
+    }
 
     // Reset position to spawn point
     this.sprite.setPosition(
@@ -600,6 +626,28 @@ export class Rover {
     // Reset stats
     this.battery = this.maxBattery;
     this.hull = this.maxHull;
+
+    // Reset solar panel state
+    this.solarState = 'retracted';
+    this.solarPanelsOut = false;
+    this.isRecharging = false;
+    this.surfaceChargeLocked = true;  // Lock battery since we're at full on surface
+
+    // Reset sprite to normal mode
+    if (this.currentSpriteMode !== 'normal' && this.hasAnimatedSprites) {
+      this.sprite.setTexture('rover_spritesheet', 0);
+      this.sprite.setFlipX(false);
+      this.sprite.setOrigin(0.5, 0.5);
+      this.currentSpriteMode = 'normal';
+
+      // Reset physics body offset
+      const bodyWidth = ROVER_SIZE * 0.96;
+      const bodyHeight = ROVER_SIZE * 0.7;
+      this.sprite.body.setOffset(
+        (ROVER_SIZE - bodyWidth) / 2,
+        ROVER_SIZE - bodyHeight + 2  // +2 for visual offset
+      );
+    }
 
     // Visual feedback
     this.scene.cameras.main.flash(500, 255, 0, 0);
@@ -633,5 +681,34 @@ export class Rover {
     const repairAmount = Math.min(amount, this.maxHull - this.hull);
     this.hull += repairAmount;
     return repairAmount;
+  }
+
+  // Reset solar panel animation state (call after pause/shop/etc)
+  resetSolarState() {
+    // If panels were mid-animation, reset to appropriate state
+    if (this.solarState === 'deploying') {
+      this.solarState = 'retracted';
+    } else if (this.solarState === 'retracting') {
+      this.solarState = 'retracted';
+    }
+    this.solarPanelsOut = this.solarState === 'deployed';
+    this.isRecharging = false;
+
+    // Reset sprite if stuck in solar mode
+    if (this.currentSpriteMode === 'rover_solar_spritesheet' && this.solarState === 'retracted') {
+      if (this.hasAnimatedSprites) {
+        this.sprite.setTexture('rover_spritesheet', 0);
+        this.sprite.setFlipX(false);
+        this.sprite.setOrigin(0.5, 0.5);
+        this.currentSpriteMode = 'normal';
+
+        const bodyWidth = ROVER_SIZE * 0.96;
+        const bodyHeight = ROVER_SIZE * 0.7;
+        this.sprite.body.setOffset(
+          (ROVER_SIZE - bodyWidth) / 2,
+          ROVER_SIZE - bodyHeight + 2  // +2 for visual offset
+        );
+      }
+    }
   }
 }

@@ -115,7 +115,21 @@ export class DrillSystem {
     const drillPowerLevel = gameData?.upgrades?.drillPower || 0;
     const maxHardness = UPGRADES.drillPower.levels[drillPowerLevel].maxHardness;
 
-    if (tile.hardness && tile.hardness > maxHardness) {
+    // Special handling for boulders (hardness 4)
+    const isBoulder = tile.unstable && tile.hardness === 4;
+    if (isBoulder) {
+      // Check if player has explosive tip
+      const hasExplosiveTip = this.hasExplosiveTip();
+      // Drill power level 2 (maxHardness 3) is NOT enough for boulders
+      // Need either explosive tip OR max drill power would need to be level 4+ (not available)
+      if (!hasExplosiveTip) {
+        this.stopDrilling();
+        this.showNeedExplosiveTip(targetX, targetY);
+        return;
+      }
+      // Track that we're using explosive tip for this boulder
+      this.usingExplosiveTip = true;
+    } else if (tile.hardness && tile.hardness > maxHardness) {
       // Can't drill this material
       this.stopDrilling();
       // Show feedback
@@ -191,6 +205,12 @@ export class DrillSystem {
   }
 
   completeDrill(tileX, tileY, tile) {
+    // If drilling a boulder with explosive tip, consume it
+    if (this.usingExplosiveTip && tile.unstable) {
+      this.consumeExplosiveTip();
+      this.showBoulderDestroyed(tileX, tileY);
+    }
+
     // If tile has ore, add to cargo
     if (tile.ore && tile.value) {
       const added = this.rover.addToCargo(tile.ore, tile.value);
@@ -218,6 +238,45 @@ export class DrillSystem {
 
     // Visual feedback
     this.showDrillComplete(tileX, tileY);
+  }
+
+  showBoulderDestroyed(tileX, tileY) {
+    const x = Math.floor(tileX * GAME_CONFIG.TILE_SIZE + GAME_CONFIG.TILE_SIZE / 2);
+    const y = tileY * GAME_CONFIG.TILE_SIZE + GAME_CONFIG.TILE_SIZE / 2;
+
+    // Explosion effect for boulder
+    this.scene.cameras.main.shake(150, 0.01);
+
+    // Rock debris
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
+      const particle = this.scene.add.circle(x, y, 5, 0x666666)
+        .setDepth(25);
+
+      this.scene.tweens.add({
+        targets: particle,
+        x: x + Math.cos(angle) * Phaser.Math.Between(30, 50),
+        y: y + Math.sin(angle) * Phaser.Math.Between(30, 50),
+        alpha: 0,
+        scale: 0.3,
+        duration: 400,
+        onComplete: () => particle.destroy(),
+      });
+    }
+
+    // "BOOM" text
+    const text = this.scene.add.bitmapText(x, y - 20, 'pixel', 'BOOM!', 12)
+      .setOrigin(0.5)
+      .setTint(0xff6600)
+      .setDepth(30);
+
+    this.scene.tweens.add({
+      targets: text,
+      y: y - 50,
+      alpha: 0,
+      duration: 800,
+      onComplete: () => text.destroy(),
+    });
   }
 
   triggerExplosion(centerX, centerY) {
@@ -274,11 +333,69 @@ export class DrillSystem {
     this.currentTarget = null;
     this.drillProgress = 0;
     this.drillDirection = null;
+    this.usingExplosiveTip = false;
 
     // Hide crack overlay
     if (this.crackOverlay) {
       this.crackOverlay.setVisible(false);
     }
+  }
+
+  // Check if player has explosive tip in inventory
+  hasExplosiveTip() {
+    const gameData = this.scene.registry.get('gameData');
+    const inventory = gameData?.inventory || [];
+
+    for (const slot of inventory) {
+      if (slot && slot.type === 'explosiveTip' && slot.quantity > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Consume one explosive tip from inventory
+  consumeExplosiveTip() {
+    const gameData = this.scene.registry.get('gameData');
+    const inventory = gameData?.inventory || [];
+
+    for (let i = 0; i < inventory.length; i++) {
+      if (inventory[i] && inventory[i].type === 'explosiveTip' && inventory[i].quantity > 0) {
+        inventory[i].quantity--;
+        if (inventory[i].quantity <= 0) {
+          inventory[i] = null;
+        }
+        gameData.inventory = inventory;
+        this.scene.registry.set('gameData', gameData);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  showNeedExplosiveTip(tileX, tileY) {
+    // Don't spam the message
+    if (this.needExplosiveTipCooldown) return;
+    this.needExplosiveTipCooldown = true;
+
+    const x = Math.floor(tileX * GAME_CONFIG.TILE_SIZE + GAME_CONFIG.TILE_SIZE / 2);
+    const y = tileY * GAME_CONFIG.TILE_SIZE;
+
+    const text = this.scene.add.bitmapText(x, y, 'pixel', 'NEED EXPLOSIVE TIP', 10)
+      .setOrigin(0.5)
+      .setTint(0xff8844)
+      .setDepth(30);
+
+    this.scene.tweens.add({
+      targets: text,
+      y: y - 40,
+      alpha: 0,
+      duration: 1000,
+      onComplete: () => {
+        text.destroy();
+        this.needExplosiveTipCooldown = false;
+      },
+    });
   }
 
   showOrePickup(tileX, tileY, ore, value) {

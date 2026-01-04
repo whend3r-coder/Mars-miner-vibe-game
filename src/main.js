@@ -4,7 +4,9 @@ import { MenuScene } from './scenes/MenuScene.js';
 import { GameScene } from './scenes/GameScene.js';
 import { UIScene } from './scenes/UIScene.js';
 import { PauseScene } from './scenes/PauseScene.js';
+import { MapScene } from './scenes/MapScene.js';
 import { GAME_CONFIG } from './config/GameConfig.js';
+import { SaveSystem } from './systems/SaveSystem.js';
 
 // Hide status bar on Android for fullscreen immersive mode
 // Only runs in Capacitor native app, not in browser
@@ -49,7 +51,7 @@ const config = {
       fps: 60,
     },
   },
-  scene: [BootScene, MenuScene, GameScene, UIScene, PauseScene],
+  scene: [BootScene, MenuScene, GameScene, UIScene, PauseScene, MapScene],
   input: {
     activePointers: 3, // Support multi-touch
   },
@@ -73,8 +75,19 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// Handle orientation change on mobile - reload to recalculate dimensions
+// Handle orientation change on mobile - save state and reload to recalculate dimensions
 window.addEventListener('orientationchange', () => {
+  // Check if GameScene is active and trigger a save
+  const gameScene = game.scene.getScene('GameScene');
+  if (gameScene && gameScene.scene.isActive()) {
+    // Trigger emergency save before reload
+    if (gameScene.saveGame) {
+      gameScene.saveGame();
+    }
+    // Mark that we have an active session to auto-continue
+    SaveSystem.setActiveSession(true);
+  }
+
   setTimeout(() => {
     window.location.reload();
   }, 100);

@@ -120,6 +120,7 @@ export class PauseScene extends Phaser.Scene {
       gameZoom: this.registry.get('gameZoom'),
       hudZoom: this.registry.get('hudZoom'),
       devMode: this.registry.get('devMode'),
+      disableDarkness: this.registry.get('disableDarkness'),
     };
     SaveSystem.saveSettings(settings);
   }
@@ -318,12 +319,57 @@ export class PauseScene extends Phaser.Scene {
       .setDepth(1);
     uiElements.push(devText);
 
+    // Track darkness toggle elements for showing/hiding
+    let darknessElements = [];
+
+    const createDarknessToggle = () => {
+      const y = currentY;
+      const darknessDisabled = this.registry.get('disableDarkness') === true;
+      const darkBg = this.add.rectangle(cx, y, 240, 28, 0x224422)
+        .setInteractive({ useHandCursor: true });
+      uiElements.push(darkBg);
+      darknessElements.push(darkBg);
+
+      const darkText = this.add.bitmapText(cx, y, 'pixel', `DARKNESS: ${darknessDisabled ? 'OFF' : 'ON'}`, 10)
+        .setOrigin(0.5)
+        .setTint(0x88ff88)
+        .setDepth(1);
+      uiElements.push(darkText);
+      darknessElements.push(darkText);
+
+      darkBg.on('pointerdown', () => {
+        const newValue = !this.registry.get('disableDarkness');
+        this.registry.set('disableDarkness', newValue);
+        darkText.setText(`DARKNESS: ${newValue ? 'OFF' : 'ON'}`);
+        this.saveSettings();
+        // Apply immediately
+        const gameScene = this.scene.get('GameScene');
+        if (gameScene && gameScene.lightingSystem) {
+          gameScene.lightingSystem.setEnabled(!newValue);
+        }
+      });
+
+      return darknessElements;
+    };
+
+    const updateDarknessVisibility = () => {
+      const devOn = this.registry.get('devMode') === true;
+      darknessElements.forEach(el => el.setVisible(devOn));
+    };
+
     devBg.on('pointerdown', () => {
       const newValue = !this.registry.get('devMode');
       this.registry.set('devMode', newValue);
       devText.setText(`DEV MODE: ${newValue ? 'ON' : 'OFF'}`);
       this.saveSettings();
+      updateDarknessVisibility();
     });
+
+    currentY += 40;
+
+    // Darkness toggle (only visible when dev mode is on)
+    createDarknessToggle();
+    updateDarknessVisibility();
 
     currentY += 40;
 

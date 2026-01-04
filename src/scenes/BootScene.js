@@ -85,8 +85,43 @@ export class BootScene extends Phaser.Scene {
     // Load ladder sprite (128x128)
     this.load.image('ladder_png', 'assets/sprites/ladder.png');
 
-    // Load mars dirt texture (128x128 pixel art)
+    // Load elevator sprites
+    this.load.image('elevator_top_png', 'assets/sprites/elevator_top.png');
+    this.load.image('elevator_rope_png', 'assets/sprites/elevator_rope.png');
+    this.load.image('elevator_cart_png', 'assets/sprites/elevator_cart.png');
+    this.load.image('elevator_bottom_png', 'assets/sprites/elevator_bottom.png');
+
+    // Load mars dirt texture (142x142 pixel art)
     this.load.image('mars_dirt', 'assets/sprites/mars_soil_128.png');
+
+    // Load mined dirt background sprites (142x142)
+    this.load.image('mined_dirt', 'assets/sprites/mined_dirt.png');
+    this.load.image('mined_dirt_left_wall', 'assets/sprites/mined_dirt_left_wall.png');
+    this.load.image('mined_dirt_right_wall', 'assets/sprites/mined_dirt_right_wall.png');
+    this.load.image('mined_dirt_rock_below', 'assets/sprites/mined_dirt_rock_below.png');
+    this.load.image('mined_dirt_rock_below_and_above', 'assets/sprites/mined_dirt_rock_below_and_above.png');
+    this.load.image('mined_dirt_walls_on_each_side', 'assets/sprites/mined_dirt_walls_on_each_side.png');
+    this.load.image('mined_dirt_walls_on_each_side_and_top', 'assets/sprites/mined_dirt_walls_on_each_side_and_top.png');
+    this.load.image('mined_dirt_rock_below_left_corner_wall', 'assets/sprites/mined_dirt_rock_below_left_corner_wall.png');
+    this.load.image('mined_dirt_rock_below_right_corner_wall', 'assets/sprites/mined_dirt_rock_below_right_corner_wall.png');
+    this.load.image('mined_dirt_rock_below_left_upper_corner_shaft_on_top_only', 'assets/sprites/mined_dirt_rock_below_left_upper_corner_shaft_on_top_only.png');
+    this.load.image('mined_dirt_rock_below_right_upper_corner_shaft_on_top_only', 'assets/sprites/mined_dirt_rock_below_right_upper_corner_shaft_on_top_only.png');
+    this.load.image('mined_dirt_rock_below_left_upper_corner_shaft_on_top_and_below', 'assets/sprites/mined_dirt_rock_below_left_upper_corner_shaft_on_top_and_below.png');
+    this.load.image('mined_dirt_rock_below_right_upper_corner_shaft_on_top_and_below', 'assets/sprites/mined_dirt_rock_below_right_upper_corner_shaft_on_top_and_below.png');
+    this.load.image('mined_dirt_rock_below_left_upper_corner_shaft_on_allsides_cross', 'assets/sprites/mined_dirt_rock_below_left_upper_corner_shaft_on_allsides_cross.png');
+    this.load.image('mined_dirt_rock_below_shaft_on_left_right_top', 'assets/sprites/mined_dirt_rock_below_shaft_on_left_right_top.png');
+    // Pit sprites - for shaft entries from above (surface or vertical shafts)
+    this.load.image('mined_dirt_rock_pit_shaft_above', 'assets/sprites/mined_dirt_rock_pit_shaft_above.png');
+    this.load.image('mined_dirt_rock_pit_left_wall_and_ground_shaft_above', 'assets/sprites/mined_dirt_rock_pit_left_wall_and_broudn_shaft_above.png');
+    this.load.image('mined_dirt_rock_pit_right_wall_and_ground_shaft_above', 'assets/sprites/mined_dirt_rock_pit_right_wall_and_broudn_shaft_above.png');
+    // Free corner sprites - ceiling + side wall with shaft below and to the side
+    this.load.image('mined_dirt_top_left_corner_free_space_around', 'assets/sprites/mined_dirt_top_left_corner_free_space_around.png');
+    this.load.image('mined_dirt_top_right_corner_free_space_around', 'assets/sprites/mined_dirt_top_right_corner_free_space_around.png');
+    // L-junction sprites - floor + side wall with shaft above and to the other side
+    this.load.image('mined_dirt_rock_corner_L-junction-shaft_to_the_left', 'assets/sprites/mined_dirt_rock_corner_L-junction-shaft_to_the_left.png');
+    this.load.image('mined_dirt_rock_corner_L-junction-shaft_to_the_right', 'assets/sprites/mined_dirt_rock_corner_L-junction-shaft_to_the_right.png');
+    // Ceiling only sprite - open below, left, right
+    this.load.image('mined_dirt_just_top_free_space_around', 'assets/sprites/mined_dirt_just top_free_space_around.png');
 
     // Track if PNGs loaded successfully
     this.load.on('filecomplete-image-shop_png', () => {
@@ -137,6 +172,18 @@ export class BootScene extends Phaser.Scene {
     this.load.on('filecomplete-image-ladder_png', () => {
       this.ladderPngLoaded = true;
       console.log('Ladder sprite loaded!');
+    });
+    this.load.on('filecomplete-image-elevator_top_png', () => {
+      this.elevatorTopLoaded = true;
+    });
+    this.load.on('filecomplete-image-elevator_rope_png', () => {
+      this.elevatorRopeLoaded = true;
+    });
+    this.load.on('filecomplete-image-elevator_cart_png', () => {
+      this.elevatorCartLoaded = true;
+    });
+    this.load.on('filecomplete-image-elevator_bottom_png', () => {
+      this.elevatorBottomLoaded = true;
     });
   }
 
@@ -331,6 +378,20 @@ export class BootScene extends Phaser.Scene {
       this.textures.addImage('tile_ladder', this.textures.get('ladder_png').getSourceImage());
     }
 
+    // Use elevator sprites if loaded
+    if (this.elevatorTopLoaded && this.textures.exists('elevator_top_png')) {
+      this.textures.addImage('tile_elevatorTop', this.textures.get('elevator_top_png').getSourceImage());
+    }
+    if (this.elevatorRopeLoaded && this.textures.exists('elevator_rope_png')) {
+      this.textures.addImage('tile_elevatorRope', this.textures.get('elevator_rope_png').getSourceImage());
+    }
+    if (this.elevatorCartLoaded && this.textures.exists('elevator_cart_png')) {
+      this.textures.addImage('tile_elevatorCar', this.textures.get('elevator_cart_png').getSourceImage());
+    }
+    if (this.elevatorBottomLoaded && this.textures.exists('elevator_bottom_png')) {
+      this.textures.addImage('tile_elevatorBottom', this.textures.get('elevator_bottom_png').getSourceImage());
+    }
+
     const colors = {
       surface: 0xc2703a,
       dirt: 0x8b4513,
@@ -352,6 +413,12 @@ export class BootScene extends Phaser.Scene {
       torch: 0xffaa00,
       elevator: 0x444488,
       teleporter: 0x8800ff,
+      boulder: 0x555555,
+      crystal: 0x00ffff,
+      elevatorTop: 0x3366aa,
+      elevatorRope: 0x445588,
+      elevatorCar: 0x4477cc,
+      elevatorBottom: 0x3366aa,
     };
 
     for (const [name, color] of Object.entries(colors)) {
@@ -360,6 +427,18 @@ export class BootScene extends Phaser.Scene {
         continue;
       }
       if (name === 'ladder' && this.ladderPngLoaded) {
+        continue;
+      }
+      if (name === 'elevatorTop' && this.elevatorTopLoaded) {
+        continue;
+      }
+      if (name === 'elevatorRope' && this.elevatorRopeLoaded) {
+        continue;
+      }
+      if (name === 'elevatorCar' && this.elevatorCartLoaded) {
+        continue;
+      }
+      if (name === 'elevatorBottom' && this.elevatorBottomLoaded) {
         continue;
       }
 
@@ -393,6 +472,66 @@ export class BootScene extends Phaser.Scene {
         graphics.fillStyle(0xffffff, 0.8);
         graphics.fillRect(tileSize / 4, tileSize / 4, 3, 3);
         graphics.fillRect(tileSize * 3 / 4, tileSize / 2, 2, 2);
+      }
+
+      // Special rendering for boulder - add cracks and darker border
+      if (name === 'boulder') {
+        // Darker border to show it's special
+        graphics.fillStyle(0x333333, 1);
+        graphics.fillRect(0, 0, tileSize, 4);
+        graphics.fillRect(0, 0, 4, tileSize);
+        graphics.fillRect(tileSize - 4, 0, 4, tileSize);
+        graphics.fillRect(0, tileSize - 4, tileSize, 4);
+        // Crack lines
+        graphics.lineStyle(2, 0x444444, 0.8);
+        graphics.beginPath();
+        graphics.moveTo(tileSize * 0.2, tileSize * 0.3);
+        graphics.lineTo(tileSize * 0.5, tileSize * 0.5);
+        graphics.lineTo(tileSize * 0.4, tileSize * 0.8);
+        graphics.strokePath();
+        graphics.beginPath();
+        graphics.moveTo(tileSize * 0.6, tileSize * 0.2);
+        graphics.lineTo(tileSize * 0.7, tileSize * 0.6);
+        graphics.strokePath();
+      }
+
+      // Special rendering for crystal - bright sparkles
+      if (name === 'crystal') {
+        // Multiple sparkle points
+        graphics.fillStyle(0xffffff, 1);
+        graphics.fillRect(tileSize / 3, tileSize / 4, 4, 4);
+        graphics.fillRect(tileSize * 2 / 3, tileSize / 2, 4, 4);
+        graphics.fillRect(tileSize / 2, tileSize * 3 / 4, 3, 3);
+        graphics.fillRect(tileSize / 4, tileSize * 2 / 3, 3, 3);
+        // Glow effect
+        graphics.fillStyle(0x88ffff, 0.5);
+        graphics.fillRect(tileSize / 3 - 2, tileSize / 4 - 2, 8, 8);
+        graphics.fillRect(tileSize * 2 / 3 - 2, tileSize / 2 - 2, 8, 8);
+      }
+
+      // Special rendering for elevator components
+      if (name === 'elevatorTop') {
+        // Anchor bracket
+        graphics.fillStyle(0x222266, 1);
+        graphics.fillRect(tileSize / 4, tileSize / 2, tileSize / 2, tileSize / 4);
+        graphics.fillStyle(0x666699, 1);
+        graphics.fillRect(tileSize / 3, tileSize / 2 - 4, tileSize / 3, 8);
+      }
+
+      if (name === 'elevatorRope') {
+        // Rope/cable - thin vertical line
+        graphics.fillStyle(0x334466, 1);
+        graphics.fillRect(tileSize / 2 - 4, 0, 8, tileSize);
+      }
+
+      if (name === 'elevatorCar') {
+        // Platform car
+        graphics.fillStyle(0x2255aa, 1);
+        graphics.fillRect(4, tileSize / 4, tileSize - 8, tileSize / 2);
+        // Rails on sides
+        graphics.fillStyle(0x3366bb, 1);
+        graphics.fillRect(8, 4, 4, tileSize - 8);
+        graphics.fillRect(tileSize - 12, 4, 4, tileSize - 8);
       }
 
       // Special rendering for lava - add glow effect

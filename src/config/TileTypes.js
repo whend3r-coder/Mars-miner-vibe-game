@@ -166,6 +166,52 @@ export const TILE_TYPES = {
     placed: true,
     color: 0x8800ff,
   },
+  boulder: {
+    id: 25,
+    solid: true,
+    drillTime: 3.2,  // 4 passes - very hard
+    hardness: 4,     // Requires drill level 3 OR explosive tip
+    unstable: true,  // Falls if unsupported
+    color: 0x555555,
+  },
+  crystal: {
+    id: 26,
+    solid: true,
+    drillTime: 0.8,  // Easy to mine once found
+    hardness: 1,
+    ore: 'crystal',
+    value: 2000,     // Very valuable!
+    color: 0x00ffff,
+  },
+  elevatorTop: {
+    id: 27,
+    solid: false,
+    placed: true,
+    elevatorPart: 'top',
+    color: 0x3366aa,
+  },
+  elevatorRope: {
+    id: 28,
+    solid: false,
+    placed: true,
+    elevatorPart: 'rope',
+    color: 0x445588,
+  },
+  elevatorCar: {
+    id: 29,
+    solid: true,
+    placed: true,
+    elevatorPart: 'car',
+    rideable: true,
+    color: 0x4477cc,
+  },
+  elevatorBottom: {
+    id: 30,
+    solid: false,
+    placed: true,
+    elevatorPart: 'bottom',
+    color: 0x3366aa,
+  },
 };
 
 export function getTileType(name) {

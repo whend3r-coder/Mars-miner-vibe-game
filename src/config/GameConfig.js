@@ -1,6 +1,6 @@
 // Calculate optimal game resolution based on screen aspect ratio
 function calculateGameDimensions() {
-  const tileSize = 128;
+  const tileSize = 140;
   const screenWidth = window.innerWidth;
   const screenHeight = window.innerHeight;
   const aspectRatio = screenWidth / screenHeight;
@@ -42,7 +42,7 @@ export const GAME_CONFIG = {
   GAME_HEIGHT: gameDimensions.height,
   TILES_WIDE: gameDimensions.tilesWide,
   TILES_TALL: gameDimensions.tilesTall,
-  TILE_SIZE: 128,  // 128px tiles for detailed sprites
+  TILE_SIZE: 140,  // 140px tiles for detailed sprites
   CAMERA_ZOOM: 1,
 
   // Zoom settings range
@@ -60,7 +60,7 @@ export const GAME_CONFIG = {
 
   // Physics (in pixels per second) - Mars gravity (38% of Earth)
   GRAVITY: 300,
-  MOVE_SPEED: 300,
+  MOVE_SPEED: 380,  // Base movement speed (upgradeable)
   JUMP_VELOCITY: -400,
   MAX_FALL_SPEED: 2100,  // High cap to feel more realistic
   CLIMB_SPEED: 200,
@@ -72,7 +72,7 @@ export const GAME_CONFIG = {
   // Rover stats
   STARTING_BATTERY: 100,
   STARTING_HULL: 100,
-  STARTING_CARGO: 6,
+  STARTING_CARGO: 8,
   STARTING_MONEY: 100,
 
   // Battery consumption (per second)
@@ -81,6 +81,7 @@ export const GAME_CONFIG = {
   BATTERY_DRILL: 1.0,
   BATTERY_JUMP: 0,        // Jumping is free
   BATTERY_THRUSTER: 3.0,  // Only thrusters cost battery
+  BATTERY_CLIMB: 0.5,     // Climbing ladders costs energy
 
   // Recharge (4 sec total: ~1s deploy + ~3s charging)
   SOLAR_RECHARGE_TIME: 3000,  // ms to fully recharge (after deploy)
@@ -102,11 +103,14 @@ export const GAME_CONFIG = {
   SPAWN_X: 22,              // Player spawn position (left of shop)
 };
 
+// Detect mobile for default settings
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 export const DEFAULT_SETTINGS = {
   soundEnabled: true,
   debugMode: false,
-  gameZoom: 1.0,
-  hudZoom: 1.0,
+  gameZoom: isMobile ? 1.25 : 1.0,
+  hudZoom: isMobile ? 1.75 : 1.0,
   devMode: false,        // Infinite battery and money
 };
 
@@ -142,11 +146,11 @@ export const UPGRADES = {
   cargoBay: {
     name: 'Cargo Bay',
     levels: [
-      { cost: 0, slots: 6 },
-      { cost: 300, slots: 10 },
-      { cost: 800, slots: 15 },
-      { cost: 2000, slots: 20 },
-      { cost: 5000, slots: 30 },
+      { cost: 0, slots: 8 },
+      { cost: 300, slots: 12 },
+      { cost: 800, slots: 18 },
+      { cost: 2000, slots: 25 },
+      { cost: 5000, slots: 35 },
     ],
   },
   hullArmor: {
@@ -159,12 +163,13 @@ export const UPGRADES = {
       { cost: 6000, hp: 500 },
     ],
   },
-  wheelTraction: {
-    name: 'Wheel Traction',
+  movementSpeed: {
+    name: 'Movement Speed',
     levels: [
-      { cost: 0, slopeAngle: 30 },
-      { cost: 600, slopeAngle: 45 },
-      { cost: 1500, slopeAngle: 60 },
+      { cost: 0, multiplier: 1.0 },
+      { cost: 400, multiplier: 1.25 },
+      { cost: 1000, multiplier: 1.5 },
+      { cost: 2500, multiplier: 1.8 },
     ],
   },
   headlights: {
@@ -207,6 +212,13 @@ export const SHOP_ITEMS = {
     stackable: true,
     maxStack: 20,
   },
+  explosiveTip: {
+    name: 'Explosive Tip',
+    cost: 40,
+    description: 'Breaks boulders (1 use)',
+    stackable: true,
+    maxStack: 20,
+  },
   dynamite: {
     name: 'Dynamite',
     cost: 200,
@@ -214,12 +226,29 @@ export const SHOP_ITEMS = {
     stackable: true,
     maxStack: 10,
   },
-  elevator: {
-    name: 'Elevator',
-    cost: 500,
-    description: 'Automated vertical transport',
+  elevatorSmall: {
+    name: 'Elevator (8)',
+    cost: 400,
+    description: '8 tile vertical lift',
     stackable: true,
     maxStack: 5,
+    elevatorLength: 8,
+  },
+  elevatorMedium: {
+    name: 'Elevator (16)',
+    cost: 700,
+    description: '16 tile vertical lift',
+    stackable: true,
+    maxStack: 5,
+    elevatorLength: 16,
+  },
+  elevatorLarge: {
+    name: 'Elevator (32)',
+    cost: 1200,
+    description: '32 tile vertical lift',
+    stackable: true,
+    maxStack: 5,
+    elevatorLength: 32,
   },
   scanner: {
     name: 'Scanner',

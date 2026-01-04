@@ -7,6 +7,9 @@ import { DrillSystem } from '../systems/DrillSystem.js';
 import { InventorySystem } from '../systems/InventorySystem.js';
 import { ShopSystem } from '../systems/ShopSystem.js';
 import { LightingSystem } from '../systems/LightingSystem.js';
+import { SaveSystem } from '../systems/SaveSystem.js';
+import { BoulderSystem } from '../systems/BoulderSystem.js';
+import { ElevatorSystem } from '../systems/ElevatorSystem.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -49,6 +52,15 @@ export class GameScene extends Phaser.Scene {
 
     this.rover = new Rover(this, playerPos.x, playerPos.y);
 
+    // Restore rover state if loading from save
+    const savedRoverState = this.registry.get('roverState');
+    if (savedRoverState) {
+      this.rover.battery = savedRoverState.battery;
+      this.rover.hull = savedRoverState.hull;
+      this.rover.cargo = savedRoverState.cargo || [];
+      this.registry.set('roverState', null);  // Clear after use
+    }
+
     // Set up camera with zoom
     this.cameras.main.setBounds(
       0, 0,
@@ -66,6 +78,12 @@ export class GameScene extends Phaser.Scene {
 
     // Create inventory system
     this.inventorySystem = new InventorySystem(this);
+
+    // Create boulder system for falling boulders
+    this.boulderSystem = new BoulderSystem(this);
+
+    // Create elevator system
+    this.elevatorSystem = new ElevatorSystem(this);
 
     // Input setup
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -100,6 +118,12 @@ export class GameScene extends Phaser.Scene {
     const headlightRadius = UPGRADES.headlights.levels[headlightLevel].radius;
     this.lightingSystem.setLightRadius(headlightRadius);
     this.lightRadius = headlightRadius;
+
+    // Apply dev mode darkness setting
+    const disableDarkness = this.registry.get('disableDarkness') === true;
+    if (disableDarkness) {
+      this.lightingSystem.setEnabled(false);
+    }
 
     // Create surface buildings
     this.createSurfaceBuildings();
@@ -258,9 +282,193 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // Determine which mined_dirt background sprite to use based on adjacent tiles
+  // Sprite naming convention:
+  // - left_wall / right_wall = wall texture on that side (solid neighbor)
+  // - rock_below = floor texture (solid below)
+  // - and_above = ceiling texture (solid above)
+  // - walls_on_each_side = left AND right walls (horizontal corridor)
+  // - pit_shaft_above = at bottom of vertical shaft, shaft visible above
+  // - corner_wall = L-shaped corner where floor meets wall
+  getMinedDirtSprite(x, y) {
+    // Get adjacent tile states (true = solid/wall, false = air/mined)
+    const left = this.isSolidAt(x - 1, y);
+    const right = this.isSolidAt(x + 1, y);
+    const above = this.isSolidAt(x, y - 1);
+    const below = this.isSolidAt(x, y + 1);
+
+    // Check if this is a mined tile (modified to air) vs natural air
+    const tileKey = `${x},${y}`;
+    const isModified = this.modifiedTiles.has(tileKey);
+
+    // Only show background for underground tiles or modified tiles
+    if (y < GAME_CONFIG.SURFACE_HEIGHT && !isModified) {
+      return null; // Above ground natural air - no background
+    }
+
+    // Check if ceiling is visible above (for pit sprites)
+    // Scan upward through shaft to find ceiling, or check surface ground for surface pits
+    let hasCeilingVisible = false;
+    if (!above) {
+      // Scan upward to find solid ceiling within the shaft
+      for (let scanY = y - 1; scanY >= Math.max(0, y - 50); scanY--) {
+        if (this.isSolidAt(x, scanY)) {
+          hasCeilingVisible = true;
+          break;
+        }
+      }
+      // For surface pits: if below surface, ground at surface level forms visible "ceiling"
+      if (!hasCeilingVisible && y > GAME_CONFIG.SURFACE_HEIGHT) {
+        const surfaceLevel = GAME_CONFIG.SURFACE_HEIGHT;
+        if (this.isSolidAt(x - 1, surfaceLevel) || this.isSolidAt(x + 1, surfaceLevel)) {
+          hasCeilingVisible = true;
+        }
+      }
+    }
+
+    // === 4 SIDES SOLID - Crossroads ===
+    if (left && right && above && below) {
+      return 'mined_dirt_rock_below_left_upper_corner_shaft_on_allsides_cross';
+    }
+
+    // === 3 SIDES SOLID ===
+    // Pit bottom: floor + left wall + right wall (open above) - digging straight down
+    // Only use pit sprite if there's a visible ceiling above, otherwise use floor sprite
+    if (below && left && right && !above) {
+      if (hasCeilingVisible) {
+        return 'mined_dirt_rock_pit_shaft_above';
+      }
+      // No ceiling visible (open to sky) - just show floor with walls
+      return 'mined_dirt_rock_below';
+    }
+    // T-junction from below: ceiling + left wall + right wall (open below)
+    if (above && left && right && !below) {
+      return 'mined_dirt_walls_on_each_side_and_top';
+    }
+    // Horizontal shaft RIGHT end: floor + ceiling + right wall (open left)
+    if (below && above && right && !left) {
+      return 'mined_dirt_rock_below_right_corner_wall';
+    }
+    // Horizontal shaft LEFT end: floor + ceiling + left wall (open right)
+    if (below && above && left && !right) {
+      return 'mined_dirt_rock_below_left_corner_wall';
+    }
+
+    // === 2 SIDES SOLID ===
+    // Vertical shaft: floor + ceiling (open left and right)
+    if (below && above && !left && !right) {
+      return 'mined_dirt_rock_below_and_above';
+    }
+    // Horizontal corridor: left wall + right wall (open above and below)
+    if (left && right && !above && !below) {
+      return 'mined_dirt_walls_on_each_side';
+    }
+    // L-corner: floor + left wall (open above and right)
+    // Check diagonal to determine tight junction vs open space
+    if (below && left && !above && !right) {
+      const diagonalSolid = this.isSolidAt(x + 1, y - 1); // upper-right diagonal
+      if (diagonalSolid) {
+        // Tight L-junction - walls form enclosed corner
+        return 'mined_dirt_rock_corner_L-junction-shaft_to_the_right';
+      }
+      // Open L-corner - free space around
+      return 'mined_dirt_rock_pit_left_wall_and_ground_shaft_above';
+    }
+    // L-corner: floor + right wall (open above and left)
+    if (below && right && !above && !left) {
+      const diagonalSolid = this.isSolidAt(x - 1, y - 1); // upper-left diagonal
+      if (diagonalSolid) {
+        // Tight L-junction - walls form enclosed corner
+        return 'mined_dirt_rock_corner_L-junction-shaft_to_the_left';
+      }
+      // Open L-corner - free space around
+      return 'mined_dirt_rock_pit_right_wall_and_ground_shaft_above';
+    }
+    // Upper-left corner: ceiling + left wall (open below and right) - shaft below and to the side
+    if (above && left && !below && !right) {
+      return 'mined_dirt_top_left_corner_free_space_around';
+    }
+    // Upper-right corner: ceiling + right wall (open below and left) - shaft below and to the side
+    if (above && right && !below && !left) {
+      return 'mined_dirt_top_right_corner_free_space_around';
+    }
+
+    // === 1 SIDE SOLID ===
+    // Floor only - check diagonals to determine tight T-junction vs open space
+    if (below && !above && !left && !right) {
+      const topLeftSolid = this.isSolidAt(x - 1, y - 1);
+      const topRightSolid = this.isSolidAt(x + 1, y - 1);
+
+      if (topLeftSolid && topRightSolid) {
+        // Both diagonals solid - tight T-junction
+        return 'mined_dirt_rock_below_shaft_on_left_right_top';
+      } else if (topLeftSolid && !topRightSolid) {
+        // Top-right free - use left upper corner variant
+        return 'mined_dirt_rock_below_left_upper_corner_shaft_on_top_only';
+      } else if (!topLeftSolid && topRightSolid) {
+        // Top-left free - use right upper corner variant
+        return 'mined_dirt_rock_below_right_upper_corner_shaft_on_top_only';
+      } else {
+        // Both diagonals free - open space, just floor
+        return 'mined_dirt_rock_below';
+      }
+    }
+    // Left wall only (open above, below, right)
+    if (left && !above && !below && !right) {
+      return 'mined_dirt_left_wall';
+    }
+    // Right wall only (open above, below, left)
+    if (right && !above && !below && !left) {
+      return 'mined_dirt_right_wall';
+    }
+    // Ceiling only (open below, left, right)
+    if (above && !below && !left && !right) {
+      return 'mined_dirt_just_top_free_space_around';
+    }
+
+    // === 0 SIDES SOLID ===
+    // Check for tight 4-way cross (all 4 directions open, but diagonals solid)
+    if (!above && !below && !left && !right) {
+      const topLeftSolid = this.isSolidAt(x - 1, y - 1);
+      const topRightSolid = this.isSolidAt(x + 1, y - 1);
+      const bottomLeftSolid = this.isSolidAt(x - 1, y + 1);
+      const bottomRightSolid = this.isSolidAt(x + 1, y + 1);
+
+      if (topLeftSolid && topRightSolid && bottomLeftSolid && bottomRightSolid) {
+        // Perfect tight 4-way cross - all diagonals solid
+        return 'mined_dirt_rock_below_left_upper_corner_shaft_on_allsides_cross';
+      }
+    }
+
+    // Open area - no walls nearby
+    return 'mined_dirt';
+  }
+
+  // Check if a tile position has a solid tile
+  isSolidAt(x, y) {
+    if (x < 0 || x >= GAME_CONFIG.WORLD_WIDTH || y < 0 || y >= GAME_CONFIG.WORLD_DEPTH) {
+      return true; // Treat out of bounds as solid
+    }
+
+    const tileKey = `${x},${y}`;
+    let tileId;
+
+    if (this.modifiedTiles.has(tileKey)) {
+      tileId = this.modifiedTiles.get(tileKey);
+    } else {
+      tileId = this.worldGenerator.getTileAt(x, y);
+    }
+
+    if (tileId === 0) return false; // Air is not solid
+
+    const tileType = getTileTypeById(tileId);
+    return tileType.solid || false;
+  }
+
   loadChunk(chunkX, chunkY) {
     const chunkKey = `${chunkX},${chunkY}`;
     const sprites = [];
+    const backgroundSprites = [];
 
     const startX = chunkX * this.chunkSize;
     const startY = chunkY * this.chunkSize;
@@ -315,11 +523,43 @@ export class GameScene extends Phaser.Scene {
           if (tileType.hazard) {
             this.hazardTiles.add(sprite);
           }
+
+          // Add background behind transparent placed items (ladders, elevators, etc.)
+          if (tileType.placed || tileType.climbable || tileType.elevatorPart) {
+            const bgTexture = this.getMinedDirtSprite(x, y);
+            if (bgTexture) {
+              const bgSprite = this.add.sprite(
+                x * GAME_CONFIG.TILE_SIZE + GAME_CONFIG.TILE_SIZE / 2,
+                y * GAME_CONFIG.TILE_SIZE + GAME_CONFIG.TILE_SIZE / 2,
+                bgTexture
+              );
+              bgSprite.setDepth(-1); // Behind everything
+              bgSprite.setData('tileX', x);
+              bgSprite.setData('tileY', y);
+              bgSprite.setData('isBackground', true);
+              backgroundSprites.push(bgSprite);
+            }
+          }
+        } else {
+          // Air tile - check if we should render a mined dirt background
+          const bgTexture = this.getMinedDirtSprite(x, y);
+          if (bgTexture) {
+            const bgSprite = this.add.sprite(
+              x * GAME_CONFIG.TILE_SIZE + GAME_CONFIG.TILE_SIZE / 2,
+              y * GAME_CONFIG.TILE_SIZE + GAME_CONFIG.TILE_SIZE / 2,
+              bgTexture
+            );
+            bgSprite.setDepth(-1); // Behind everything
+            bgSprite.setData('tileX', x);
+            bgSprite.setData('tileY', y);
+            bgSprite.setData('isBackground', true);
+            backgroundSprites.push(bgSprite);
+          }
         }
       }
     }
 
-    this.loadedChunks.set(chunkKey, { sprites });
+    this.loadedChunks.set(chunkKey, { sprites, backgroundSprites });
   }
 
   unloadChunk(key, chunk) {
@@ -329,6 +569,12 @@ export class GameScene extends Phaser.Scene {
         collider.destroy();
       }
       sprite.destroy();
+    }
+    // Clean up background sprites
+    if (chunk.backgroundSprites) {
+      for (const bgSprite of chunk.backgroundSprites) {
+        bgSprite.destroy();
+      }
     }
     this.loadedChunks.delete(key);
   }
@@ -357,6 +603,26 @@ export class GameScene extends Phaser.Scene {
     if (this.loadedChunks.has(chunkKey)) {
       this.unloadChunk(chunkKey, this.loadedChunks.get(chunkKey));
       this.loadChunk(chunkX, chunkY);
+    }
+
+    // Also reload adjacent chunks if tile is at chunk boundary
+    // (adjacent tiles in other chunks need their backgrounds updated)
+    const localX = tileX % this.chunkSize;
+    const localY = tileY % this.chunkSize;
+
+    // Check and reload adjacent chunks at boundaries
+    const adjacentChunks = [];
+    if (localX === 0) adjacentChunks.push([chunkX - 1, chunkY]); // Left edge
+    if (localX === this.chunkSize - 1) adjacentChunks.push([chunkX + 1, chunkY]); // Right edge
+    if (localY === 0) adjacentChunks.push([chunkX, chunkY - 1]); // Top edge
+    if (localY === this.chunkSize - 1) adjacentChunks.push([chunkX, chunkY + 1]); // Bottom edge
+
+    for (const [adjX, adjY] of adjacentChunks) {
+      const adjKey = `${adjX},${adjY}`;
+      if (this.loadedChunks.has(adjKey)) {
+        this.unloadChunk(adjKey, this.loadedChunks.get(adjKey));
+        this.loadChunk(adjX, adjY);
+      }
     }
   }
 
@@ -387,6 +653,16 @@ export class GameScene extends Phaser.Scene {
 
     // Update drill system
     this.drillSystem.update(time, delta, input);
+
+    // Update boulder system (check for falling boulders)
+    if (this.boulderSystem) {
+      this.boulderSystem.update(time, delta);
+    }
+
+    // Update elevator system (handle riding elevators)
+    if (this.elevatorSystem) {
+      this.elevatorSystem.update(time, delta, input);
+    }
 
     // Check building interactions
     this.checkBuildingInteractions();
@@ -421,7 +697,8 @@ export class GameScene extends Phaser.Scene {
       cargo: this.rover.cargo,
       maxCargo: this.rover.maxCargo,
       money: this.registry.get('gameData').money,
-      depth: Math.max(0, Math.floor(this.rover.sprite.y / GAME_CONFIG.TILE_SIZE) - GAME_CONFIG.SURFACE_HEIGHT),
+      // Use sprite center + half tile to get the tile we're standing ON
+      depth: Math.max(0, Math.floor((this.rover.sprite.y + GAME_CONFIG.TILE_SIZE / 2) / GAME_CONFIG.TILE_SIZE) - GAME_CONFIG.SURFACE_HEIGHT),
       isOnSurface: this.isOnSurface(),
       isRecharging: this.rover.isRecharging,
     });
@@ -565,5 +842,34 @@ export class GameScene extends Phaser.Scene {
         onComplete: () => msg.destroy()
       });
     }
+  }
+
+  // Save game state (called on orientation change, pause, etc.)
+  saveGame() {
+    if (!this.rover) return;
+
+    // Update gameData with current rover state
+    const gameData = this.registry.get('gameData');
+    gameData.cargo = this.rover.cargo;
+
+    const saveData = {
+      version: '2.0',
+      timestamp: Date.now(),
+      worldSeed: this.worldSeed,
+      playerPosition: {
+        x: this.rover.sprite.x,
+        y: this.rover.sprite.y,
+      },
+      gameData: gameData,
+      modifiedTiles: Array.from(this.modifiedTiles.entries()),
+      placedItems: this.placedItems,
+      roverState: {
+        battery: this.rover.battery,
+        hull: this.rover.hull,
+        cargo: this.rover.cargo,
+      },
+    };
+
+    SaveSystem.save(saveData);
   }
 }

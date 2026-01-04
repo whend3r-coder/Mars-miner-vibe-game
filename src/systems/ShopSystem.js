@@ -6,6 +6,10 @@ export class ShopSystem {
     this.isOpen = false;
     this.currentTab = 'items'; // 'items' or 'upgrades'
     this.uiElements = [];
+
+    // Detect mobile for UI scaling
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    this.uiScale = this.isMobile ? 1.4 : 1.0;
   }
 
   open() {
@@ -24,6 +28,12 @@ export class ShopSystem {
     this.uiElements.forEach(el => el.destroy());
     this.uiElements = [];
 
+    // Reset solar panel state to prevent animation glitches
+    const gameScene = this.scene.scene.get('GameScene');
+    if (gameScene && gameScene.rover) {
+      gameScene.rover.resetSolarState();
+    }
+
     this.scene.scene.resume('GameScene');
   }
 
@@ -31,26 +41,37 @@ export class ShopSystem {
     const width = GAME_CONFIG.GAME_WIDTH;
     const height = GAME_CONFIG.GAME_HEIGHT;
     const cx = Math.floor(width / 2);
+    const scale = this.uiScale;
+
+    // Scaled font sizes (must be multiples of 10)
+    this.smallFont = Math.max(10, Math.round(10 * scale / 10) * 10);
+    this.largeFont = Math.max(10, Math.round(20 * scale / 10) * 10);
 
     // Background overlay
     const overlay = this.scene.add.rectangle(cx, Math.floor(height / 2), width, height, 0x000000, 0.85);
     this.uiElements.push(overlay);
 
     // Title
-    const title = this.scene.add.bitmapText(cx, 24, 'pixel', 'SHOP', 20)
+    const titleY = Math.floor(24 * scale);
+    const title = this.scene.add.bitmapText(cx, titleY, 'pixel', 'SHOP', this.largeFont)
       .setOrigin(0.5)
       .setTint(0xffaa00);
     this.uiElements.push(title);
 
     // Money display
     const gameData = this.scene.registry.get('gameData');
-    const moneyText = this.scene.add.bitmapText(width - 12, 24, 'pixel', `$${gameData.money}`, 20)
+    const moneyText = this.scene.add.bitmapText(width - 12, titleY, 'pixel', `$${gameData.money}`, this.largeFont)
       .setOrigin(1, 0.5)
       .setTint(0xffdd44);
     this.uiElements.push(moneyText);
 
     // Tab buttons
-    const itemsTabBg = this.scene.add.rectangle(cx - 80, 64, 100, 28,
+    const tabY = Math.floor(64 * scale);
+    const tabWidth = Math.floor(100 * scale);
+    const tabHeight = Math.floor(28 * scale);
+    const tabOffset = Math.floor(80 * scale);
+
+    const itemsTabBg = this.scene.add.rectangle(cx - tabOffset, tabY, tabWidth, tabHeight,
       this.currentTab === 'items' ? 0x333333 : 0x222222)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => {
@@ -59,12 +80,12 @@ export class ShopSystem {
         this.open();
       });
     this.uiElements.push(itemsTabBg);
-    const itemsTabText = this.scene.add.bitmapText(cx - 80, 64, 'pixel', 'ITEMS', 10)
+    const itemsTabText = this.scene.add.bitmapText(cx - tabOffset, tabY, 'pixel', 'ITEMS', this.smallFont)
       .setOrigin(0.5)
       .setTint(this.currentTab === 'items' ? 0xffaa00 : 0x888888);
     this.uiElements.push(itemsTabText);
 
-    const upgradesTabBg = this.scene.add.rectangle(cx + 80, 64, 120, 28,
+    const upgradesTabBg = this.scene.add.rectangle(cx + tabOffset, tabY, Math.floor(120 * scale), tabHeight,
       this.currentTab === 'upgrades' ? 0x333333 : 0x222222)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => {
@@ -73,7 +94,7 @@ export class ShopSystem {
         this.open();
       });
     this.uiElements.push(upgradesTabBg);
-    const upgradesTabText = this.scene.add.bitmapText(cx + 80, 64, 'pixel', 'UPGRADES', 10)
+    const upgradesTabText = this.scene.add.bitmapText(cx + tabOffset, tabY, 'pixel', 'UPGRADES', this.smallFont)
       .setOrigin(0.5)
       .setTint(this.currentTab === 'upgrades' ? 0xffaa00 : 0x888888);
     this.uiElements.push(upgradesTabText);
@@ -86,11 +107,12 @@ export class ShopSystem {
     }
 
     // Close button
-    const closeBg = this.scene.add.rectangle(cx, height - 28, 140, 28, 0x444444)
+    const closeY = height - Math.floor(28 * scale);
+    const closeBg = this.scene.add.rectangle(cx, closeY, Math.floor(140 * scale), tabHeight, 0x444444)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.close());
     this.uiElements.push(closeBg);
-    const closeText = this.scene.add.bitmapText(cx, height - 28, 'pixel', 'CLOSE ESC', 10)
+    const closeText = this.scene.add.bitmapText(cx, closeY, 'pixel', this.isMobile ? 'CLOSE' : 'CLOSE ESC', this.smallFont)
       .setOrigin(0.5)
       .setTint(0xffffff);
     this.uiElements.push(closeText);
@@ -102,10 +124,11 @@ export class ShopSystem {
   createItemsTab() {
     const width = GAME_CONFIG.GAME_WIDTH;
     const cx = Math.floor(width / 2);
-    const startY = 104;
+    const scale = this.uiScale;
+    const startY = Math.floor(104 * scale);
     const itemsPerRow = 2;
-    const itemWidth = 190;
-    const itemHeight = 60;
+    const itemWidth = Math.floor(190 * scale);
+    const itemHeight = Math.floor(60 * scale);
 
     const items = Object.entries(SHOP_ITEMS);
     const gameData = this.scene.registry.get('gameData');
@@ -123,7 +146,7 @@ export class ShopSystem {
 
       // Item box
       const box = this.scene.add.rectangle(x, y, itemWidth - 8, itemHeight - 8, canAfford ? 0x333333 : 0x222222)
-        .setStrokeStyle(2, canAfford ? 0x666666 : 0x333333)
+        .setStrokeStyle(Math.floor(2 * scale), canAfford ? 0x666666 : 0x333333)
         .setInteractive({ useHandCursor: canAfford })
         .on('pointerover', () => canAfford && box.setFillStyle(0x444444))
         .on('pointerout', () => box.setFillStyle(canAfford ? 0x333333 : 0x222222))
@@ -131,13 +154,13 @@ export class ShopSystem {
       this.uiElements.push(box);
 
       // Item name
-      const nameText = this.scene.add.bitmapText(x, y - 12, 'pixel', item.name.toUpperCase(), 10)
+      const nameText = this.scene.add.bitmapText(x, y - Math.floor(12 * scale), 'pixel', item.name.toUpperCase(), this.smallFont)
         .setOrigin(0.5)
         .setTint(canAfford ? 0xffffff : 0x666666);
       this.uiElements.push(nameText);
 
       // Item cost
-      const costText = this.scene.add.bitmapText(x, y + 12, 'pixel', `$${item.cost}`, 10)
+      const costText = this.scene.add.bitmapText(x, y + Math.floor(12 * scale), 'pixel', `$${item.cost}`, this.smallFont)
         .setOrigin(0.5)
         .setTint(canAfford ? 0xffdd44 : 0x664422);
       this.uiElements.push(costText);
@@ -145,7 +168,7 @@ export class ShopSystem {
       // Item description (tooltip on hover)
       box.on('pointerover', () => {
         if (this.tooltipText) this.tooltipText.destroy();
-        this.tooltipText = this.scene.add.bitmapText(cx, GAME_CONFIG.GAME_HEIGHT - 64, 'pixel', item.description.toUpperCase(), 10)
+        this.tooltipText = this.scene.add.bitmapText(cx, GAME_CONFIG.GAME_HEIGHT - Math.floor(64 * scale), 'pixel', item.description.toUpperCase(), this.smallFont)
           .setOrigin(0.5)
           .setTint(0xaaaaaa);
         this.uiElements.push(this.tooltipText);
@@ -156,8 +179,9 @@ export class ShopSystem {
   createUpgradesTab() {
     const width = GAME_CONFIG.GAME_WIDTH;
     const cx = Math.floor(width / 2);
-    const startY = 104;
-    const upgradeHeight = 36;
+    const scale = this.uiScale;
+    const startY = Math.floor(104 * scale);
+    const upgradeHeight = Math.floor(36 * scale);
 
     const upgrades = Object.entries(UPGRADES);
     const gameData = this.scene.registry.get('gameData');
@@ -173,8 +197,8 @@ export class ShopSystem {
       const canAfford = !isMaxed && (devMode || gameData.money >= cost);
 
       // Upgrade row
-      const box = this.scene.add.rectangle(cx, y, width - 40, upgradeHeight - 4, canAfford ? 0x333333 : 0x222222)
-        .setStrokeStyle(2, canAfford ? 0x666666 : 0x333333)
+      const box = this.scene.add.rectangle(cx, y, width - Math.floor(40 * scale), upgradeHeight - 4, canAfford ? 0x333333 : 0x222222)
+        .setStrokeStyle(Math.floor(2 * scale), canAfford ? 0x666666 : 0x333333)
         .setInteractive({ useHandCursor: canAfford })
         .on('pointerover', () => canAfford && box.setFillStyle(0x444444))
         .on('pointerout', () => box.setFillStyle(canAfford ? 0x333333 : 0x222222))
@@ -182,20 +206,20 @@ export class ShopSystem {
       this.uiElements.push(box);
 
       // Upgrade name
-      const nameText = this.scene.add.bitmapText(40, y, 'pixel', upgrade.name.toUpperCase(), 10)
+      const nameText = this.scene.add.bitmapText(Math.floor(40 * scale), y, 'pixel', upgrade.name.toUpperCase(), this.smallFont)
         .setOrigin(0, 0.5)
         .setTint(0xffffff);
       this.uiElements.push(nameText);
 
       // Level indicator
-      const levelText = this.scene.add.bitmapText(cx, y, 'pixel', `LV ${currentLevel + 1}/${maxLevel + 1}`, 10)
+      const levelText = this.scene.add.bitmapText(cx, y, 'pixel', `LV ${currentLevel + 1}/${maxLevel + 1}`, this.smallFont)
         .setOrigin(0.5)
         .setTint(isMaxed ? 0x44ff44 : 0x888888);
       this.uiElements.push(levelText);
 
       // Cost
       const costStr = isMaxed ? 'MAX' : `$${cost}`;
-      const costText = this.scene.add.bitmapText(width - 40, y, 'pixel', costStr, 10)
+      const costText = this.scene.add.bitmapText(width - Math.floor(40 * scale), y, 'pixel', costStr, this.smallFont)
         .setOrigin(1, 0.5)
         .setTint(isMaxed ? 0x44ff44 : (canAfford ? 0xffdd44 : 0x664422));
       this.uiElements.push(costText);
@@ -299,6 +323,9 @@ export class ShopSystem {
           gameScene.lightingSystem.setLightRadius(levelData.radius);
         }
         gameScene.lightRadius = levelData.radius;
+        break;
+      case 'movementSpeed':
+        rover.speedMultiplier = levelData.multiplier;
         break;
     }
   }

@@ -104,8 +104,14 @@ export class InventorySystem {
       case 'dynamite':
         this.placeDynamite();
         break;
-      case 'elevator':
-        this.placeElevator();
+      case 'elevatorSmall':
+        this.placeElevator('elevatorSmall');
+        break;
+      case 'elevatorMedium':
+        this.placeElevator('elevatorMedium');
+        break;
+      case 'elevatorLarge':
+        this.placeElevator('elevatorLarge');
         break;
       case 'scanner':
         this.useScanner();
@@ -248,16 +254,192 @@ export class InventorySystem {
     }
   }
 
-  placeElevator() {
-    const pos = this.getPlacementPosition();
+  placeElevator(elevatorType) {
+    const rover = this.scene.rover;
+    const roverTileX = Math.floor(rover.sprite.x / GAME_CONFIG.TILE_SIZE);
+    // Get tile where rover body is (not feet) - elevator starts at rover level
+    const roverTileY = Math.floor(rover.sprite.y / GAME_CONFIG.TILE_SIZE);
 
-    if (this.canPlaceAt(pos.x, pos.y)) {
-      this.scene.setTileAt(pos.x, pos.y, TILE_TYPES.elevator.id);
-      this.removeItem(this.selectedSlot);
-      this.showPlacementFeedback(pos.x, pos.y, 'Elevator placed');
-      this.trackPlacedItem('elevator', pos.x, pos.y, { active: true });
-    } else {
-      this.showPlacementFeedback(pos.x, pos.y, 'Cannot place here', true);
+    const itemDef = SHOP_ITEMS[elevatorType];
+    if (!itemDef || !itemDef.elevatorLength) {
+      this.showPlacementFeedback(roverTileX, roverTileY, 'Invalid elevator', true);
+      return;
+    }
+
+    // Show placement overlay with 3 options
+    this.showElevatorPlacementOverlay(elevatorType, roverTileX, roverTileY);
+  }
+
+  showElevatorPlacementOverlay(elevatorType, roverTileX, roverTileY) {
+    const itemDef = SHOP_ITEMS[elevatorType];
+    const length = itemDef.elevatorLength;
+
+    // Calculate positions: behind, on rover, in front
+    const positions = [];
+    const rover = this.scene.rover;
+
+    // Behind (opposite of facing direction)
+    const behindX = rover.facingRight ? roverTileX - 1 : roverTileX + 1;
+    positions.push({ x: behindX, y: roverTileY, label: 'BEHIND' });
+
+    // On rover position
+    positions.push({ x: roverTileX, y: roverTileY, label: 'HERE' });
+
+    // In front (facing direction)
+    const frontX = rover.facingRight ? roverTileX + 1 : roverTileX - 1;
+    positions.push({ x: frontX, y: roverTileY, label: 'FRONT' });
+
+    // Create overlay elements
+    this.elevatorPlacementOverlay = [];
+    this.pendingElevatorType = elevatorType;
+    this.pendingElevatorLength = length;
+
+    for (let i = 0; i < positions.length; i++) {
+      const pos = positions[i];
+      const worldX = pos.x * GAME_CONFIG.TILE_SIZE + GAME_CONFIG.TILE_SIZE / 2;
+      const worldY = pos.y * GAME_CONFIG.TILE_SIZE + GAME_CONFIG.TILE_SIZE / 2;
+
+      // Check if this position is valid
+      let canPlace = true;
+      for (let dy = 0; dy < length; dy++) {
+        const tile = this.scene.getTileAt(pos.x, pos.y + dy);
+        if (tile && tile.solid && !tile.placed) {
+          canPlace = false;
+          break;
+        }
+      }
+
+      // Create preview rectangle showing elevator shaft
+      const previewColor = canPlace ? 0x44ff44 : 0xff4444;
+      const preview = this.scene.add.rectangle(
+        worldX,
+        worldY + (length / 2 - 0.5) * GAME_CONFIG.TILE_SIZE,
+        GAME_CONFIG.TILE_SIZE * 0.8,
+        length * GAME_CONFIG.TILE_SIZE * 0.9,
+        previewColor,
+        0.3
+      ).setDepth(50).setStrokeStyle(2, previewColor, 0.8);
+
+      // Create label
+      const label = this.scene.add.bitmapText(
+        Math.floor(worldX),
+        Math.floor(worldY - GAME_CONFIG.TILE_SIZE * 0.8),
+        'pixel',
+        pos.label,
+        10
+      ).setOrigin(0.5).setTint(canPlace ? 0x44ff44 : 0xff4444).setDepth(51);
+
+      // Create clickable button
+      const button = this.scene.add.rectangle(
+        worldX,
+        worldY,
+        GAME_CONFIG.TILE_SIZE,
+        GAME_CONFIG.TILE_SIZE,
+        0x000000,
+        0.01
+      ).setDepth(52).setInteractive({ useHandCursor: canPlace });
+
+      if (canPlace) {
+        button.on('pointerdown', () => {
+          this.confirmElevatorPlacement(pos.x, pos.y);
+        });
+      }
+
+      this.elevatorPlacementOverlay.push({ preview, label, button, pos, canPlace });
+    }
+
+    // Create cancel hint
+    const cancelHint = this.scene.add.bitmapText(
+      Math.floor(rover.sprite.x),
+      Math.floor(rover.sprite.y - GAME_CONFIG.TILE_SIZE * 2),
+      'pixel',
+      'TAP TO PLACE - ESC TO CANCEL',
+      8
+    ).setOrigin(0.5).setTint(0xaaaaaa).setDepth(51);
+    this.elevatorPlacementOverlay.push({ label: cancelHint });
+
+    // Listen for ESC or click elsewhere to cancel
+    this.elevatorCancelHandler = () => {
+      this.cancelElevatorPlacement();
+    };
+    this.scene.input.keyboard.once('keydown-ESC', this.elevatorCancelHandler);
+
+    // Auto-cancel after 5 seconds
+    this.elevatorTimeout = this.scene.time.delayedCall(5000, () => {
+      this.cancelElevatorPlacement();
+    });
+  }
+
+  confirmElevatorPlacement(x, y) {
+    // Clean up overlay
+    this.cleanupElevatorOverlay();
+
+    // Place the elevator
+    if (this.scene.elevatorSystem) {
+      const success = this.scene.elevatorSystem.placeElevator(x, y, this.pendingElevatorType);
+      if (success) {
+        this.removeItem(this.selectedSlot);
+        this.showPlacementFeedback(x, y, `${this.pendingElevatorLength}-tile elevator placed`);
+      } else {
+        this.showPlacementFeedback(x, y, 'Cannot place here', true);
+      }
+    }
+
+    this.pendingElevatorType = null;
+    this.pendingElevatorLength = null;
+  }
+
+  cancelElevatorPlacement() {
+    this.cleanupElevatorOverlay();
+    this.pendingElevatorType = null;
+    this.pendingElevatorLength = null;
+
+    const rover = this.scene.rover;
+    const roverTileX = Math.floor(rover.sprite.x / GAME_CONFIG.TILE_SIZE);
+    const roverTileY = Math.floor(rover.sprite.y / GAME_CONFIG.TILE_SIZE);
+    this.showPlacementFeedback(roverTileX, roverTileY, 'Cancelled', true);
+  }
+
+  cleanupElevatorOverlay() {
+    if (this.elevatorPlacementOverlay) {
+      // Fade out all elements before destroying
+      for (const item of this.elevatorPlacementOverlay) {
+        const elements = [];
+        if (item.preview) elements.push(item.preview);
+        if (item.label) elements.push(item.label);
+        if (item.button) elements.push(item.button);
+
+        // Immediately destroy all elements (no fade for reliability)
+        for (const el of elements) {
+          try {
+            if (el && el.destroy) {
+              el.destroy();
+            }
+          } catch (e) {
+            // Already destroyed
+          }
+        }
+      }
+      this.elevatorPlacementOverlay = [];
+      this.elevatorPlacementOverlay = null;
+    }
+
+    if (this.elevatorTimeout) {
+      try {
+        this.elevatorTimeout.destroy();
+      } catch (e) {
+        // Already destroyed
+      }
+      this.elevatorTimeout = null;
+    }
+
+    if (this.elevatorCancelHandler) {
+      try {
+        this.scene.input.keyboard.off('keydown-ESC', this.elevatorCancelHandler);
+      } catch (e) {
+        // Already removed
+      }
+      this.elevatorCancelHandler = null;
     }
   }
 

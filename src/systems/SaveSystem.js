@@ -1,5 +1,6 @@
 const SAVE_KEY = 'mars_miner_rover_save';
 const SETTINGS_KEY = 'mars_miner_rover_settings';
+const SESSION_KEY = 'mars_miner_rover_session';
 
 export class SaveSystem {
   static save(data) {
@@ -104,5 +105,22 @@ export class SaveSystem {
       reader.onerror = reject;
       reader.readAsText(file);
     });
+  }
+
+  // Session state - for preserving game state across orientation changes
+  static setActiveSession(active) {
+    if (active) {
+      sessionStorage.setItem(SESSION_KEY, 'true');
+    } else {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }
+
+  static hasActiveSession() {
+    return sessionStorage.getItem(SESSION_KEY) === 'true';
+  }
+
+  static clearActiveSession() {
+    sessionStorage.removeItem(SESSION_KEY);
   }
 }
