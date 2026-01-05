@@ -44,22 +44,13 @@ export const TILE_TYPES = {
     value: 5,
     color: 0x1a1a1a,
   },
-  copper: {
+  iron: {
     id: 5,
     solid: true,
     drillTime: 0.8,  // 1 pass
     hardness: 1,
-    ore: 'copper',
-    value: 15,
-    color: 0xb87333,
-  },
-  iron: {
-    id: 6,
-    solid: true,
-    drillTime: 0.8,  // 1 pass
-    hardness: 1,
     ore: 'iron',
-    value: 30,
+    value: 15,
     color: 0xc0c0c0,
   },
   silver: {

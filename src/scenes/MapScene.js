@@ -376,8 +376,7 @@ export class MapScene extends Phaser.Scene {
       // Ore colors
       switch (tileType.ore) {
         case 'coal': return 0x333333;
-        case 'copper': return 0xdd7744;
-        case 'iron': return 0x888888;
+        case 'iron': return 0xaaaaaa;
         case 'silver': return 0xcccccc;
         case 'gold': return 0xffdd00;
         case 'platinum': return 0xaaddff;

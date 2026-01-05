@@ -123,29 +123,28 @@ export class WorldGenerator {
       return TILE_TYPES.boulder.id;
     }
 
-    // Layer 1: Shallow (0-50) - Dirt, Coal, Copper
+    // Layer 1: Shallow (0-50) - Dirt, Coal, Iron
     if (depth < 50) {
-      if (rand < 0.04) return TILE_TYPES.coal.id;       // 4% (was 2%)
-      if (rand < 0.08) return TILE_TYPES.copper.id;     // 4% (was 2%)
+      if (rand < 0.04) return TILE_TYPES.coal.id;       // 4%
+      if (rand < 0.08) return TILE_TYPES.iron.id;       // 4% (early game ore)
       return TILE_TYPES.dirt.id;
     }
 
-    // Layer 2: Medium (50-150) - Rock, Iron, Silver, Gold
+    // Layer 2: Medium (50-150) - Rock, Silver, Gold, Ruby
     if (depth < 150) {
-      if (rand < 0.03) return TILE_TYPES.iron.id;       // 3% (was 1.5%)
-      if (rand < 0.06) return TILE_TYPES.silver.id;     // 3% (was 1.5%)
-      if (rand < 0.09) return TILE_TYPES.gold.id;       // 3% (was 1%)
+      if (rand < 0.03) return TILE_TYPES.silver.id;     // 3%
+      if (rand < 0.06) return TILE_TYPES.gold.id;       // 3%
+      if (rand < 0.09) return TILE_TYPES.ruby.id;       // 3% (amethyst sprite)
       if (rand < 0.14) return TILE_TYPES.dirt.id;
       return TILE_TYPES.rock.id;
     }
 
-    // Layer 3: Deep (150-300) - Hard Rock, Gold, Platinum, Ruby, Gas
+    // Layer 3: Deep (150-300) - Hard Rock, Gold, Platinum, Gas
     if (depth < 300) {
-      if (rand < 0.025) return TILE_TYPES.gold.id;      // 2.5% (was 1%)
-      if (rand < 0.055) return TILE_TYPES.platinum.id;  // 3% (was 1.5%)
-      if (rand < 0.085) return TILE_TYPES.ruby.id;      // 3% (was 1%)
-      if (rand < 0.10) return TILE_TYPES.gas.id;        // reduced gas
-      if (rand < 0.20) return TILE_TYPES.rock.id;
+      if (rand < 0.025) return TILE_TYPES.gold.id;      // 2.5%
+      if (rand < 0.055) return TILE_TYPES.platinum.id;  // 3%
+      if (rand < 0.07) return TILE_TYPES.gas.id;        // 1.5% gas
+      if (rand < 0.17) return TILE_TYPES.rock.id;
       return TILE_TYPES.hardRock.id;
     }
 

@@ -94,6 +94,15 @@ export class BootScene extends Phaser.Scene {
     // Load mars dirt texture (142x142 pixel art)
     this.load.image('mars_dirt', 'assets/sprites/mars_soil_128.png');
 
+    // Load ore deposit textures
+    this.load.image('deposit_coal', 'assets/sprites/mars_carbon_deposite_v2.png');
+    this.load.image('deposit_iron', 'assets/sprites/mars_iron_deposite_v2.png');
+    this.load.image('deposit_silver', 'assets/sprites/mars_silver_deposite_v2.png');
+    this.load.image('deposit_gold', 'assets/sprites/mars_gold_deposite_v2.png');
+    this.load.image('deposit_platinum', 'assets/sprites/mars_platin_deposite_v2.png');
+    this.load.image('deposit_amethyst', 'assets/sprites/mars_ametyst_deposite_v2.png');
+    this.load.image('boulder_sprite', 'assets/sprites/boulder_v2.png');
+
     // Load mined dirt background sprites (142x142)
     this.load.image('mined_dirt', 'assets/sprites/mined_dirt.png');
     this.load.image('mined_dirt_left_wall', 'assets/sprites/mined_dirt_left_wall.png');
@@ -184,6 +193,29 @@ export class BootScene extends Phaser.Scene {
     });
     this.load.on('filecomplete-image-elevator_bottom_png', () => {
       this.elevatorBottomLoaded = true;
+    });
+
+    // Track deposit sprite loading
+    this.load.on('filecomplete-image-deposit_coal', () => {
+      this.depositCoalLoaded = true;
+    });
+    this.load.on('filecomplete-image-deposit_iron', () => {
+      this.depositIronLoaded = true;
+    });
+    this.load.on('filecomplete-image-deposit_silver', () => {
+      this.depositSilverLoaded = true;
+    });
+    this.load.on('filecomplete-image-deposit_gold', () => {
+      this.depositGoldLoaded = true;
+    });
+    this.load.on('filecomplete-image-deposit_platinum', () => {
+      this.depositPlatinumLoaded = true;
+    });
+    this.load.on('filecomplete-image-deposit_amethyst', () => {
+      this.depositAmethystLoaded = true;
+    });
+    this.load.on('filecomplete-image-boulder_sprite', () => {
+      this.boulderSpriteLoaded = true;
     });
   }
 
@@ -392,13 +424,36 @@ export class BootScene extends Phaser.Scene {
       this.textures.addImage('tile_elevatorBottom', this.textures.get('elevator_bottom_png').getSourceImage());
     }
 
+    // Use deposit sprites if loaded
+    if (this.depositCoalLoaded && this.textures.exists('deposit_coal')) {
+      this.textures.addImage('tile_coal', this.textures.get('deposit_coal').getSourceImage());
+    }
+    if (this.depositIronLoaded && this.textures.exists('deposit_iron')) {
+      this.textures.addImage('tile_iron', this.textures.get('deposit_iron').getSourceImage());
+    }
+    if (this.depositSilverLoaded && this.textures.exists('deposit_silver')) {
+      this.textures.addImage('tile_silver', this.textures.get('deposit_silver').getSourceImage());
+    }
+    if (this.depositGoldLoaded && this.textures.exists('deposit_gold')) {
+      this.textures.addImage('tile_gold', this.textures.get('deposit_gold').getSourceImage());
+    }
+    if (this.depositPlatinumLoaded && this.textures.exists('deposit_platinum')) {
+      this.textures.addImage('tile_platinum', this.textures.get('deposit_platinum').getSourceImage());
+    }
+    if (this.depositAmethystLoaded && this.textures.exists('deposit_amethyst')) {
+      // Use amethyst for ruby (purple gem)
+      this.textures.addImage('tile_ruby', this.textures.get('deposit_amethyst').getSourceImage());
+    }
+    if (this.boulderSpriteLoaded && this.textures.exists('boulder_sprite')) {
+      this.textures.addImage('tile_boulder', this.textures.get('boulder_sprite').getSourceImage());
+    }
+
     const colors = {
       surface: 0xc2703a,
       dirt: 0x8b4513,
       rock: 0x696969,
       hardRock: 0x2f4f4f,
       coal: 0x1a1a1a,
-      copper: 0xb87333,
       iron: 0xc0c0c0,
       silver: 0xe8e8e8,
       gold: 0xffd700,
@@ -439,6 +494,28 @@ export class BootScene extends Phaser.Scene {
         continue;
       }
       if (name === 'elevatorBottom' && this.elevatorBottomLoaded) {
+        continue;
+      }
+      // Skip ores if PNG deposits loaded
+      if (name === 'coal' && this.depositCoalLoaded) {
+        continue;
+      }
+      if (name === 'iron' && this.depositIronLoaded) {
+        continue;
+      }
+      if (name === 'silver' && this.depositSilverLoaded) {
+        continue;
+      }
+      if (name === 'gold' && this.depositGoldLoaded) {
+        continue;
+      }
+      if (name === 'platinum' && this.depositPlatinumLoaded) {
+        continue;
+      }
+      if (name === 'ruby' && this.depositAmethystLoaded) {
+        continue;
+      }
+      if (name === 'boulder' && this.boulderSpriteLoaded) {
         continue;
       }
 

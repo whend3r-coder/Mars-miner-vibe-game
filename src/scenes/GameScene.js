@@ -860,7 +860,7 @@ export class GameScene extends Phaser.Scene {
       } else {
         // Fallback: colored circle
         const colorMap = {
-          coal: 0x333333, copper: 0xdd7744, iron: 0x888888, silver: 0xcccccc,
+          coal: 0x333333, iron: 0xaaaaaa, silver: 0xcccccc,
           gold: 0xffdd00, platinum: 0xaaddff, ruby: 0xff3344, emerald: 0x33ff66,
           diamond: 0x88ffff, crystal: 0x00ffff
         };
