@@ -252,6 +252,10 @@ export class MenuScene extends Phaser.Scene {
       this.registry.set('modifiedTiles', modifiedTiles);
       this.registry.set('placedItems', saveData.placedItems || []);
 
+      // Convert explored tiles array back to Set
+      const exploredTiles = new Set(saveData.exploredTiles || []);
+      this.registry.set('exploredTiles', exploredTiles);
+
       // Restore rover state (battery, hull, cargo)
       if (saveData.roverState) {
         this.registry.set('roverState', saveData.roverState);
@@ -271,6 +275,7 @@ export class MenuScene extends Phaser.Scene {
     this.registry.set('debugMode', settings.debugMode);
     this.registry.set('gameZoom', settings.gameZoom);
     this.registry.set('hudZoom', settings.hudZoom);
+    this.registry.set('tileSnap', settings.tileSnap !== false); // Default to true
   }
 
   saveSettings() {
@@ -279,6 +284,7 @@ export class MenuScene extends Phaser.Scene {
       debugMode: this.registry.get('debugMode'),
       gameZoom: this.registry.get('gameZoom'),
       hudZoom: this.registry.get('hudZoom'),
+      tileSnap: this.registry.get('tileSnap'),
     };
     SaveSystem.saveSettings(settings);
   }

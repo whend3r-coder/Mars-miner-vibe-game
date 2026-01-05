@@ -163,25 +163,15 @@ export class BoulderSystem {
   }
 
   isBoulderSupported(x, y) {
-    // Check ground below
+    // Check ground below - only solid tiles directly underneath support boulders
     const tileBelow = this.scene.getTileAt(x, y + 1);
     if (tileBelow && tileBelow.solid) {
       return true;
     }
 
-    // Check for ladder stabilization (adjacent ladders)
-    const directions = [
-      { dx: -1, dy: 0 },  // left
-      { dx: 1, dy: 0 },   // right
-      { dx: 0, dy: -1 },  // above
-      { dx: 0, dy: 1 },   // below
-    ];
-
-    for (const dir of directions) {
-      const adjacentTile = this.scene.getTileAt(x + dir.dx, y + dir.dy);
-      if (adjacentTile && adjacentTile.climbable) {
-        return true;  // Stabilized by ladder
-      }
+    // Ladders only support if directly below the boulder
+    if (tileBelow && tileBelow.climbable) {
+      return true;
     }
 
     return false;

@@ -193,6 +193,36 @@ export class UIScene extends Phaser.Scene {
     this.hotbarSlots = [];
     this.selectedSlot = 0;
 
+    // Item texture mapping
+    this.itemTextures = {
+      ladder: 'ladder_png',
+      platform: null, // Will use colored rectangle
+      torch: null,
+      explosiveTip: null,
+      dynamite: null,
+      elevatorSmall: 'elevator_cart_png',
+      elevatorMedium: 'elevator_cart_png',
+      elevatorLarge: 'elevator_cart_png',
+      scanner: null,
+      grapplingHook: null,
+      teleporterPad: null
+    };
+
+    // Item color fallbacks
+    this.itemColors = {
+      ladder: 0x8b4513,
+      platform: 0x666666,
+      torch: 0xffaa00,
+      explosiveTip: 0xff6600,
+      dynamite: 0xff0000,
+      elevatorSmall: 0x4477cc,
+      elevatorMedium: 0x4477cc,
+      elevatorLarge: 0x4477cc,
+      scanner: 0x00ff00,
+      grapplingHook: 0x888888,
+      teleporterPad: 0x8800ff
+    };
+
     for (let i = 0; i < slots; i++) {
       const x = startX + i * (slotSize + slotGap);
       const centerX = Math.floor(x + slotSize / 2);
@@ -203,17 +233,32 @@ export class UIScene extends Phaser.Scene {
         .on('pointerdown', () => this.selectAndUseSlot(i));
       this.hudContainer.add(bg);
 
-      const label = this.add.bitmapText(centerX, hotbarY, 'pixel', '', smallFont)
-        .setOrigin(0.5)
-        .setTint(0xffffff);
-      this.hudContainer.add(label);
+      // Item icon (will be shown when item exists)
+      const icon = this.add.rectangle(centerX, hotbarY, slotSize * 0.6, slotSize * 0.6, 0xffffff)
+        .setVisible(false);
+      this.hudContainer.add(icon);
 
-      // Slot number
+      // Item sprite (for items with textures)
+      const sprite = this.add.sprite(centerX, hotbarY, 'ladder_png')
+        .setVisible(false)
+        .setScale(slotSize * 0.6 / 140); // Scale to fit slot (sprites are 140px)
+      this.hudContainer.add(sprite);
+
+      // Quantity label (bottom-right corner)
+      const qtyLabel = this.add.bitmapText(
+        centerX + slotSize / 2 - Math.floor(4 * scale),
+        hotbarY + slotSize / 2 - Math.floor(4 * scale),
+        'pixel', '', smallFont)
+        .setOrigin(1, 1)
+        .setTint(0xffffff);
+      this.hudContainer.add(qtyLabel);
+
+      // Slot number (top-left corner)
       const numLabel = this.add.bitmapText(x + Math.floor(4 * scale), hotbarY - Math.floor(slotSize / 2) + Math.floor(4 * scale), 'pixel', `${i + 1}`, smallFont)
         .setTint(0x888888);
       this.hudContainer.add(numLabel);
 
-      this.hotbarSlots.push({ bg, label, numLabel, index: i });
+      this.hotbarSlots.push({ bg, icon, sprite, qtyLabel, numLabel, index: i });
     }
   }
 
@@ -316,8 +361,10 @@ export class UIScene extends Phaser.Scene {
     this.input.on('pointermove', this.joystickMoveHandler);
     this.input.on('pointerup', this.joystickUpHandler);
 
-    // Pause button - rectangle bg + bitmapText (positioned below cargo text)
-    const pauseBg = this.add.rectangle(GAME_CONFIG.GAME_WIDTH - 24, 110, 40, 28, 0x333333)
+    // Pause button - positioned on left side below hull bar
+    const scale = this.hudScale;
+    const pauseY = 8 + Math.floor(12 * scale) + Math.floor(24 * scale) + Math.floor(24 * scale); // Below hull bar
+    const pauseBg = this.add.rectangle(8 + Math.floor(56 * scale) + Math.floor(50 * scale), pauseY, 40, 28, 0x333333)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => {
         this.scene.launch('PauseScene');
@@ -325,7 +372,7 @@ export class UIScene extends Phaser.Scene {
       });
     this.touchElements.push(pauseBg);
 
-    const pauseLabel = this.add.bitmapText(GAME_CONFIG.GAME_WIDTH - 24, 110, 'pixel', 'II', 10)
+    const pauseLabel = this.add.bitmapText(8 + Math.floor(56 * scale) + Math.floor(50 * scale), pauseY, 'pixel', 'II', 10)
       .setOrigin(0.5)
       .setTint(0xffffff);
     this.touchElements.push(pauseLabel);
@@ -368,12 +415,30 @@ export class UIScene extends Phaser.Scene {
     this.hotbarSlots.forEach((slot, index) => {
       if (inventory[index] && inventory[index].quantity > 0) {
         const item = inventory[index];
-        const abbrev = item.type.substring(0, 3).toUpperCase();
-        const qty = item.quantity > 1 ? ` ${item.quantity}` : '';
-        slot.label.setText(abbrev + qty);
-        slot.bg.setFillStyle(0x555555, 0.8);
+        slot.bg.setFillStyle(0x444444, 0.9);
+
+        // Check if item has a texture
+        const textureKey = this.itemTextures[item.type];
+        if (textureKey && this.textures.exists(textureKey)) {
+          // Show sprite
+          slot.sprite.setTexture(textureKey);
+          slot.sprite.setVisible(true);
+          slot.icon.setVisible(false);
+        } else {
+          // Show colored rectangle
+          const color = this.itemColors[item.type] || 0x888888;
+          slot.icon.setFillStyle(color);
+          slot.icon.setVisible(true);
+          slot.sprite.setVisible(false);
+        }
+
+        // Show quantity
+        slot.qtyLabel.setText(item.quantity > 1 ? `${item.quantity}` : '');
       } else {
-        slot.label.setText('');
+        // Empty slot
+        slot.icon.setVisible(false);
+        slot.sprite.setVisible(false);
+        slot.qtyLabel.setText('');
         slot.bg.setFillStyle(0x333333, 0.8);
       }
     });

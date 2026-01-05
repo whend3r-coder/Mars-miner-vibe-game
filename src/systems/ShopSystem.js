@@ -9,7 +9,7 @@ export class ShopSystem {
 
     // Detect mobile for UI scaling
     this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    this.uiScale = this.isMobile ? 1.4 : 1.0;
+    this.uiScale = this.isMobile ? 2.0 : 1.0;
   }
 
   open() {

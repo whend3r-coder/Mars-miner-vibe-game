@@ -25,8 +25,8 @@ export class MapScene extends Phaser.Scene {
 
     // Map settings - higher default zoom
     this.mapScale = 8; // pixels per tile (was 2)
-    this.minScale = 2;
-    this.maxScale = 16;
+    this.minScale = 1;
+    this.maxScale = 32;
     this.mapOffsetX = 0;
     this.mapOffsetY = 0;
 
@@ -45,15 +45,32 @@ export class MapScene extends Phaser.Scene {
     this.drawMap();
 
     // Instructions
-    this.add.bitmapText(width / 2, height - 40, 'pixel', 'SCROLL/PINCH TO ZOOM - DRAG TO PAN', 10)
+    this.add.bitmapText(width / 2, height - 20, 'pixel', 'SCROLL/PINCH TO ZOOM - DRAG TO PAN', 10)
       .setOrigin(0.5)
       .setTint(0x888888);
 
-    // Close button
-    const closeBg = this.add.rectangle(width / 2, height - 20, 80, 24, 0x444444)
+    // Detect mobile for close button positioning
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const scale = this.registry.get('hudZoom') || 1;
+    const padding = 8;
+
+    // Close button - on mobile, position in top right (same as map open button)
+    // On desktop, position at bottom center
+    let closeX, closeY, closeWidth;
+    if (isMobile) {
+      closeX = width - padding - Math.floor(25 * scale);
+      closeY = padding + Math.floor(50 * scale);
+      closeWidth = Math.floor(50 * scale);
+    } else {
+      closeX = width / 2;
+      closeY = height - 40;
+      closeWidth = 80;
+    }
+
+    const closeBg = this.add.rectangle(closeX, closeY, closeWidth, 24, 0x444444)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.closeMap());
-    this.add.bitmapText(width / 2, height - 20, 'pixel', 'CLOSE', 10)
+    this.add.bitmapText(closeX, closeY, 'pixel', 'X', 10)
       .setOrigin(0.5)
       .setTint(0xffffff);
 
@@ -265,6 +282,10 @@ export class MapScene extends Phaser.Scene {
     const exploredTiles = gameScene.exploredTiles;
     if (!exploredTiles) return;
 
+    // Collect ladders and elevators to draw on top
+    const ladderTiles = [];
+    const elevatorTiles = [];
+
     for (const key of exploredTiles) {
       const [x, y] = key.split(',').map(Number);
 
@@ -279,14 +300,72 @@ export class MapScene extends Phaser.Scene {
       if (tileId !== undefined) {
         const tileType = getTileTypeById(tileId);
         if (tileType && tileId !== TILE_TYPES.air.id) {
-          const color = this.getTileColor(tileType);
-          graphics.fillStyle(color, 1);
-          graphics.fillRect(x * scale, y * scale, scale, scale);
+          // Ladders: draw dark background first, store for pattern later
+          if (tileType.climbable) {
+            graphics.fillStyle(0x222233, 1);
+            graphics.fillRect(x * scale, y * scale, scale, scale);
+            ladderTiles.push({ x, y });
+          } else if (tileType.elevatorPart) {
+            graphics.fillStyle(0x222233, 1);
+            graphics.fillRect(x * scale, y * scale, scale, scale);
+            elevatorTiles.push({ x, y, part: tileType.elevatorPart });
+          } else {
+            const color = this.getTileColor(tileType);
+            graphics.fillStyle(color, 1);
+            graphics.fillRect(x * scale, y * scale, scale, scale);
+          }
         } else {
           // Air tiles show as dark (explored but empty)
           graphics.fillStyle(0x222233, 1);
           graphics.fillRect(x * scale, y * scale, scale, scale);
         }
+      }
+    }
+
+    // Draw ladder patterns on top
+    graphics.fillStyle(0xbb8844, 1);
+    for (const { x, y } of ladderTiles) {
+      const px = x * scale;
+      const py = y * scale;
+
+      // Draw ladder rungs and rails based on zoom level
+      if (scale >= 4) {
+        // Side rails
+        const railW = Math.max(1, Math.floor(scale * 0.15));
+        graphics.fillRect(px + railW, py, railW, scale);
+        graphics.fillRect(px + scale - railW * 2, py, railW, scale);
+
+        // Rungs (3-4 horizontal bars)
+        const rungCount = scale >= 8 ? 4 : 3;
+        const rungH = Math.max(1, Math.floor(scale * 0.1));
+        for (let i = 0; i < rungCount; i++) {
+          const rungY = py + Math.floor(scale * (0.15 + i * 0.25));
+          graphics.fillRect(px + railW, rungY, scale - railW * 2, rungH);
+        }
+      } else {
+        // At low zoom, just show a vertical line
+        const lineW = Math.max(1, Math.floor(scale * 0.4));
+        graphics.fillRect(px + (scale - lineW) / 2, py, lineW, scale);
+      }
+    }
+
+    // Draw elevator indicators
+    graphics.fillStyle(0x4477cc, 1);
+    for (const { x, y, part } of elevatorTiles) {
+      const px = x * scale;
+      const py = y * scale;
+
+      if (part === 'car') {
+        // Elevator car - filled rectangle
+        graphics.fillRect(px + 1, py + 1, scale - 2, scale - 2);
+      } else if (part === 'rope') {
+        // Rope - vertical line
+        const lineW = Math.max(1, Math.floor(scale * 0.2));
+        graphics.fillRect(px + (scale - lineW) / 2, py, lineW, scale);
+      } else {
+        // Top/bottom - horizontal line
+        const lineH = Math.max(1, Math.floor(scale * 0.3));
+        graphics.fillRect(px, py + (scale - lineH) / 2, scale, lineH);
       }
     }
   }

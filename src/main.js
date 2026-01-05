@@ -46,7 +46,7 @@ const config = {
   physics: {
     default: 'arcade',
     arcade: {
-      gravity: { y: GAME_CONFIG.GRAVITY * GAME_CONFIG.TILE_SIZE },
+      gravity: { y: GAME_CONFIG.GRAVITY },
       debug: false,
       fps: 60,
     },

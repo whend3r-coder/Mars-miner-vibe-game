@@ -59,11 +59,12 @@ export const GAME_CONFIG = {
   SURFACE_HEIGHT: 10,      // tiles of surface before mine
 
   // Physics (in pixels per second) - Mars gravity (38% of Earth)
-  GRAVITY: 300,
+  // Mars = 3.72 m/s², at 140px/tile scale = ~520 px/s²
+  GRAVITY: 520,
   MOVE_SPEED: 380,  // Base movement speed (upgradeable)
-  JUMP_VELOCITY: -400,
-  MAX_FALL_SPEED: 2100,  // High cap to feel more realistic
-  CLIMB_SPEED: 200,
+  JUMP_VELOCITY: -435,  // Base ~1.3 tile jump height (upgradeable)
+  MAX_FALL_SPEED: 800,  // Terminal velocity (~5.7 tiles/sec, reasonable for Mars atmosphere)
+  CLIMB_SPEED: 280,
 
   // Fall damage (in tiles)
   FALL_DAMAGE_START: 3,     // Start taking damage after 3 tiles
@@ -75,11 +76,11 @@ export const GAME_CONFIG = {
   STARTING_CARGO: 8,
   STARTING_MONEY: 100,
 
-  // Battery consumption (per second)
+  // Battery consumption (per second, except JUMP which is per jump)
   BATTERY_IDLE: 0,
   BATTERY_MOVE: 0.3,
   BATTERY_DRILL: 1.0,
-  BATTERY_JUMP: 0,        // Jumping is free
+  BATTERY_JUMP: 2.5,      // Per jump - useful but has tradeoff
   BATTERY_THRUSTER: 3.0,  // Only thrusters cost battery
   BATTERY_CLIMB: 0.5,     // Climbing ladders costs energy
 
@@ -112,6 +113,7 @@ export const DEFAULT_SETTINGS = {
   gameZoom: isMobile ? 1.25 : 1.0,
   hudZoom: isMobile ? 1.75 : 1.0,
   devMode: false,        // Infinite battery and money
+  tileSnap: true,        // Gentle guidance toward tile centers
 };
 
 export const UPGRADES = {
@@ -170,6 +172,15 @@ export const UPGRADES = {
       { cost: 400, multiplier: 1.25 },
       { cost: 1000, multiplier: 1.5 },
       { cost: 2500, multiplier: 1.8 },
+    ],
+  },
+  jumpHeight: {
+    name: 'Jump Height',
+    levels: [
+      { cost: 0, multiplier: 1.0 },       // 1.3 tiles base
+      { cost: 600, multiplier: 1.15 },    // ~1.5 tiles
+      { cost: 1500, multiplier: 1.35 },   // ~1.75 tiles
+      { cost: 3500, multiplier: 1.55 },   // ~2.0 tiles
     ],
   },
   headlights: {

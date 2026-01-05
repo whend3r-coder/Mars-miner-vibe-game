@@ -790,25 +790,141 @@ export class GameScene extends Phaser.Scene {
   }
 
   sellCargoAtShop() {
+    // Collect cargo details before selling
+    const cargoDetails = this.getCargoSummary();
     const sold = this.rover.sellCargo();
-    if (sold > 0) {
-      // Show feedback
-      const msg = this.add.bitmapText(
-        Math.floor(this.rover.sprite.x),
-        Math.floor(this.rover.sprite.y - 30),
-        'pixel',
-        `+$${sold}`,
-        10
-      ).setOrigin(0.5).setTint(0x44ff44).setDepth(100);
 
-      this.tweens.add({
-        targets: msg,
-        y: msg.y - 20,
-        alpha: 0,
-        duration: 1500,
-        onComplete: () => msg.destroy()
-      });
+    if (sold > 0) {
+      // Show detailed cargo sold popup
+      this.showCargoSoldPopup(cargoDetails, sold);
     }
+  }
+
+  getCargoSummary() {
+    // Group cargo by ore type
+    const summary = {};
+    for (const item of this.rover.cargo) {
+      if (!summary[item.ore]) {
+        summary[item.ore] = { count: 0, totalValue: 0, unitValue: item.value };
+      }
+      summary[item.ore].count++;
+      summary[item.ore].totalValue += item.value;
+    }
+    return summary;
+  }
+
+  showCargoSoldPopup(cargoDetails, totalValue) {
+    const cx = GAME_CONFIG.GAME_WIDTH / 2;
+    const cy = GAME_CONFIG.GAME_HEIGHT / 2;
+    const entries = Object.entries(cargoDetails);
+
+    // Popup dimensions
+    const popupWidth = Math.min(300, GAME_CONFIG.GAME_WIDTH - 40);
+    const lineHeight = 28;
+    const popupHeight = Math.min(60 + entries.length * lineHeight + 40, GAME_CONFIG.GAME_HEIGHT - 60);
+
+    // Container for all popup elements
+    const popupElements = [];
+
+    // Background overlay
+    const overlay = this.add.rectangle(cx, cy, GAME_CONFIG.GAME_WIDTH, GAME_CONFIG.GAME_HEIGHT, 0x000000, 0.7)
+      .setDepth(200);
+    popupElements.push(overlay);
+
+    // Popup box
+    const box = this.add.rectangle(cx, cy, popupWidth, popupHeight, 0x222233, 1)
+      .setStrokeStyle(2, 0x44ff44)
+      .setDepth(201);
+    popupElements.push(box);
+
+    // Title
+    const title = this.add.bitmapText(cx, cy - popupHeight / 2 + 20, 'pixel', 'CARGO SOLD!', 20)
+      .setOrigin(0.5)
+      .setTint(0x44ff44)
+      .setDepth(202);
+    popupElements.push(title);
+
+    // List each ore type
+    let yOffset = cy - popupHeight / 2 + 50;
+    for (const [ore, data] of entries) {
+      // Ore texture (small sprite)
+      const oreName = ore.charAt(0).toUpperCase() + ore.slice(1);
+      const textureKey = ore; // Ore textures use the ore name
+
+      // Draw mini ore icon (scaled down via Phaser)
+      if (this.textures.exists(textureKey)) {
+        const icon = this.add.sprite(cx - popupWidth / 2 + 25, yOffset, textureKey)
+          .setScale(0.15)
+          .setDepth(202);
+        popupElements.push(icon);
+      } else {
+        // Fallback: colored circle
+        const colorMap = {
+          coal: 0x333333, copper: 0xdd7744, iron: 0x888888, silver: 0xcccccc,
+          gold: 0xffdd00, platinum: 0xaaddff, ruby: 0xff3344, emerald: 0x33ff66,
+          diamond: 0x88ffff, crystal: 0x00ffff
+        };
+        const circle = this.add.circle(cx - popupWidth / 2 + 25, yOffset, 8, colorMap[ore] || 0xffffff)
+          .setDepth(202);
+        popupElements.push(circle);
+      }
+
+      // Ore name and count
+      const nameText = this.add.bitmapText(cx - popupWidth / 2 + 45, yOffset, 'pixel',
+        `${oreName} x${data.count}`, 10)
+        .setOrigin(0, 0.5)
+        .setTint(0xffffff)
+        .setDepth(202);
+      popupElements.push(nameText);
+
+      // Value (right-aligned)
+      const valueText = this.add.bitmapText(cx + popupWidth / 2 - 20, yOffset, 'pixel',
+        `$${data.totalValue}`, 10)
+        .setOrigin(1, 0.5)
+        .setTint(0xffdd44)
+        .setDepth(202);
+      popupElements.push(valueText);
+
+      yOffset += lineHeight;
+    }
+
+    // Divider line
+    const divider = this.add.rectangle(cx, yOffset, popupWidth - 40, 2, 0x666666)
+      .setDepth(202);
+    popupElements.push(divider);
+
+    // Total
+    yOffset += 20;
+    const totalText = this.add.bitmapText(cx - popupWidth / 2 + 20, yOffset, 'pixel', 'TOTAL:', 10)
+      .setOrigin(0, 0.5)
+      .setTint(0xffffff)
+      .setDepth(202);
+    popupElements.push(totalText);
+
+    const totalValueText = this.add.bitmapText(cx + popupWidth / 2 - 20, yOffset, 'pixel',
+      `+$${totalValue}`, 20)
+      .setOrigin(1, 0.5)
+      .setTint(0x44ff44)
+      .setDepth(202);
+    popupElements.push(totalValueText);
+
+    // Auto-dismiss after delay OR on tap
+    const dismissPopup = () => {
+      popupElements.forEach(el => {
+        this.tweens.add({
+          targets: el,
+          alpha: 0,
+          duration: 300,
+          onComplete: () => el.destroy()
+        });
+      });
+    };
+
+    // Tap/click to dismiss
+    overlay.setInteractive().on('pointerdown', dismissPopup);
+
+    // Auto-dismiss after 3 seconds
+    this.time.delayedCall(3000, dismissPopup);
   }
 
   repairAtShop() {
@@ -863,6 +979,7 @@ export class GameScene extends Phaser.Scene {
       gameData: gameData,
       modifiedTiles: Array.from(this.modifiedTiles.entries()),
       placedItems: this.placedItems,
+      exploredTiles: Array.from(this.exploredTiles),
       roverState: {
         battery: this.rover.battery,
         hull: this.rover.hull,

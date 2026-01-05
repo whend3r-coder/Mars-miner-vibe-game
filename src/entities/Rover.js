@@ -18,6 +18,7 @@ export class Rover {
     this.maxCargo = UPGRADES.cargoBay.levels[upgrades.cargoBay || 0].slots;
     this.hasThrusters = UPGRADES.thrusters.levels[upgrades.thrusters || 0].enabled;
     this.speedMultiplier = UPGRADES.movementSpeed.levels[upgrades.movementSpeed || 0].multiplier;
+    this.jumpMultiplier = UPGRADES.jumpHeight.levels[upgrades.jumpHeight || 0].multiplier;
 
     // Current stats
     this.battery = this.maxBattery;
@@ -77,6 +78,10 @@ export class Rover {
     this.fallStartY = null;
     this.wasFalling = false;
 
+    // Jump energy tracking (for ceiling bump refunds)
+    this.jumpStartY = null;
+    this.jumpEnergyPaid = 0;
+
     // Solar panel state
     this.solarState = 'retracted'; // 'retracted', 'deploying', 'deployed', 'retracting'
     this.solarPanelsOut = false;   // True when panels are fully deployed (can charge)
@@ -91,6 +96,12 @@ export class Rover {
     // Check if grounded
     const wasGrounded = this.isGrounded;
     this.isGrounded = this.sprite.body.blocked.down || this.sprite.body.touching.down;
+
+    // Clear jump tracking when landing
+    if (this.isGrounded && !wasGrounded) {
+      this.jumpStartY = null;
+      this.jumpEnergyPaid = 0;
+    }
 
     // Fall damage tracking
     this.checkFallDamage(wasGrounded);
@@ -177,6 +188,9 @@ export class Rover {
       this.sprite.setVelocityX(speed);
     }
 
+    // Apply tile snap guidance if enabled
+    this.applyTileSnap(input, dt);
+
     // When on elevator - allow horizontal movement to walk off, but skip vertical controls
     if (this.isOnElevator) {
       this.sprite.body.setAllowGravity(false);
@@ -204,15 +218,192 @@ export class Rover {
     } else {
       this.sprite.body.setAllowGravity(true);
 
-      // Jump (free, no battery cost)
-      if (input.up && this.isGrounded) {
-        this.sprite.setVelocityY(GAME_CONFIG.JUMP_VELOCITY);
+      // Jump (costs battery, multiplier from upgrade)
+      if (input.up && this.isGrounded && this.battery > 0) {
+        const jumpVelocity = GAME_CONFIG.JUMP_VELOCITY * this.jumpMultiplier;
+        this.sprite.setVelocityY(jumpVelocity);
+        // Track jump start for energy refund if we hit ceiling immediately
+        this.jumpStartY = this.sprite.y;
+        this.jumpEnergyPaid = GAME_CONFIG.BATTERY_JUMP;
+        // Drain battery per jump (not per-second like other costs)
+        this.battery = Math.max(0, this.battery - GAME_CONFIG.BATTERY_JUMP);
       }
 
       // Thrusters (late game upgrade, costs battery)
       if (this.hasThrusters && input.up && !this.isGrounded && this.battery > 0) {
         this.sprite.setVelocityY(Math.max(this.sprite.body.velocity.y - 15, -200));
         this.isUsingThrusters = true;
+      }
+    }
+
+    // Prevent visual ceiling clipping
+    // The sprite visual extends above the physics body, so check for ceiling above sprite top
+    this.checkCeilingClip();
+  }
+
+  checkCeilingClip() {
+    const tileSize = GAME_CONFIG.TILE_SIZE;
+    const ceilingBuffer = 8; // Visual buffer below ceiling tiles
+
+    // Only check when moving upward
+    if (this.sprite.body.velocity.y >= 0) return;
+
+    // Visual sprite top (sprite is 128px, origin 0.5)
+    const spriteTop = this.sprite.y - 64;
+    const spriteTopTileY = Math.floor(spriteTop / tileSize);
+    const tileX = Math.floor(this.sprite.x / tileSize);
+
+    // Check if there's a solid tile at the visual top
+    if (this.scene.isSolidAt(tileX, spriteTopTileY)) {
+      // Calculate minimum Y position to not clip into ceiling (with 8px buffer)
+      const minY = (spriteTopTileY + 1) * tileSize + 64 + ceilingBuffer;
+
+      if (this.sprite.y < minY) {
+        this.sprite.y = minY;
+        this.sprite.setVelocityY(0);
+
+        // Refund energy for ceiling bump jumps
+        // If we barely jumped (less than half a tile), refund most of the energy
+        if (this.jumpStartY !== null && this.jumpEnergyPaid > 0) {
+          const jumpDistance = this.jumpStartY - this.sprite.y; // Positive = moved up
+          const minJumpForFullCost = tileSize * 0.5; // Half tile minimum for full cost
+
+          if (jumpDistance < minJumpForFullCost) {
+            // Refund proportional to how short the jump was
+            const refundRatio = 1 - (jumpDistance / minJumpForFullCost);
+            const refund = this.jumpEnergyPaid * refundRatio * 0.8; // Refund up to 80%
+            this.battery = Math.min(this.maxBattery, this.battery + refund);
+          }
+          // Clear jump tracking
+          this.jumpStartY = null;
+          this.jumpEnergyPaid = 0;
+        }
+      }
+    }
+  }
+
+  applyTileSnap(input, dt) {
+    // Check if tile snap is enabled
+    const tileSnapEnabled = this.scene.registry.get('tileSnap') !== false;
+    if (!tileSnapEnabled) return;
+
+    const tileSize = GAME_CONFIG.TILE_SIZE;
+    const snapStrength = 250; // Pixels per second correction (slightly faster)
+    const snapThreshold = tileSize * 0.48; // Within 48% of tile center (more generous)
+    const minOffset = 6; // Don't snap if already very close (prevents jitter)
+
+    const hasHorizontalInput = input.left || input.right;
+    const hasVerticalInput = input.up || input.down;
+
+    // No snapping when pressing both directions - let physics handle it
+    if (hasHorizontalInput && hasVerticalInput) return;
+
+    // Get current position and calculate offset from tile center
+    const x = this.sprite.x;
+    const y = this.sprite.y;
+
+    const tileCenterX = (Math.floor(x / tileSize) + 0.5) * tileSize;
+    const tileCenterY = (Math.floor(y / tileSize) + 0.5) * tileSize;
+
+    const offsetX = x - tileCenterX;
+    const offsetY = y - tileCenterY;
+
+    const tileX = Math.floor(x / tileSize);
+    const tileY = Math.floor(y / tileSize);
+
+    // HORIZONTAL SNAP - center when moving vertically
+    // Works for: ladders, elevators, narrow passages, AND normal pits/shafts
+    if (hasVerticalInput && !hasHorizontalInput && Math.abs(offsetX) < snapThreshold && Math.abs(offsetX) > minOffset) {
+      const ladderHere = this.scene.getTileAt(tileX, tileY);
+      const ladderAbove = this.scene.getTileAt(tileX, tileY - 1);
+      const ladderBelow = this.scene.getTileAt(tileX, tileY + 1);
+      const hasLadderContext = (ladderHere && ladderHere.climbable) ||
+                               (ladderAbove && ladderAbove.climbable) ||
+                               (ladderBelow && ladderBelow.climbable);
+
+      const hasElevatorContext = (ladderHere && (ladderHere.elevatorPart || ladderHere.rideable)) ||
+                                 (ladderAbove && (ladderAbove.elevatorPart || ladderAbove.rideable)) ||
+                                 (ladderBelow && (ladderBelow.elevatorPart || ladderBelow.rideable));
+
+      // Check for narrow vertical passage (walls on both sides)
+      const leftBlocked = this.scene.isSolidAt(tileX - 1, tileY);
+      const rightBlocked = this.scene.isSolidAt(tileX + 1, tileY);
+      const hasNarrowPassage = leftBlocked && rightBlocked;
+
+      // Check for pit/shaft entrance when pressing down
+      // Look at the tile in the direction we're offset from center
+      const pressingDown = input.down;
+      let nearPitEntrance = false;
+
+      if (pressingDown) {
+        // Check which direction we're offset from tile center
+        // If offset > 0, we're to the right of center, check the tile to the right
+        // If offset < 0, we're to the left of center, check the tile to the left
+        const checkTileX = offsetX > 0 ? tileX + 1 : tileX - 1;
+
+        // Is there an open pit at that adjacent tile?
+        const adjacentOpen = !this.scene.isSolidAt(checkTileX, tileY);
+        const adjacentPitBelow = !this.scene.isSolidAt(checkTileX, tileY + 1);
+
+        // Also check current tile - maybe we're already mostly over the pit
+        const currentOpen = !this.scene.isSolidAt(tileX, tileY + 1);
+
+        nearPitEntrance = (adjacentOpen && adjacentPitBelow) || currentOpen;
+      }
+
+      if (hasLadderContext || hasElevatorContext || hasNarrowPassage ||
+          this.isClimbing || this.isOnElevator || nearPitEntrance) {
+        const correction = -Math.sign(offsetX) * Math.min(Math.abs(offsetX), snapStrength * dt);
+        this.sprite.x += correction;
+      }
+    }
+
+    // VERTICAL SNAP - help step off ladders/elevators/shafts when moving horizontally
+    // KEY: Only snap if there's actually space to move into!
+    if (hasHorizontalInput && !hasVerticalInput && Math.abs(offsetY) < snapThreshold && Math.abs(offsetY) > minOffset) {
+      const dirX = input.left ? -1 : 1;
+      const destTileX = tileX + dirX;
+
+      // Check if destination is actually open (not a wall)
+      const destOpen = !this.scene.isSolidAt(destTileX, tileY);
+
+      // Check if there's floor or ladder to land on
+      const destTileBelow = this.scene.getTileAt(destTileX, tileY + 1);
+      const destHasFloor = this.scene.isSolidAt(destTileX, tileY + 1) ||
+                           (destTileBelow && destTileBelow.climbable);
+
+      // Only proceed if there's actually somewhere to step off to
+      const canStepOff = destOpen && destHasFloor;
+
+      if (!canStepOff) return; // No space to move - don't snap (prevents jitter against walls)
+
+      // Check for ladder/elevator context at current position
+      const ladderHere = this.scene.getTileAt(tileX, tileY);
+      const ladderBelow = this.scene.getTileAt(tileX, tileY + 1);
+      const hasLadderHere = (ladderHere && ladderHere.climbable) || (ladderBelow && ladderBelow.climbable);
+      const hasElevatorHere = (ladderHere && (ladderHere.elevatorPart || ladderHere.rideable)) ||
+                              (ladderBelow && (ladderBelow.elevatorPart || ladderBelow.rideable));
+
+      // Check if stepping off from ladder/elevator behind us
+      const tileBehind = this.scene.getTileAt(tileX - dirX, tileY);
+      const steppingOffLadder = tileBehind && tileBehind.climbable;
+      const steppingOffElevator = tileBehind && (tileBehind.elevatorPart || tileBehind.rideable);
+
+      // Check for narrow horizontal passage
+      const aboveBlocked = this.scene.isSolidAt(tileX, tileY - 1);
+      const belowBlocked = this.scene.isSolidAt(tileX, tileY + 1);
+      const hasNarrowPassage = aboveBlocked && belowBlocked;
+
+      // NEW: Also snap when in a vertical shaft trying to step onto a side ledge
+      const inVerticalShaft = !belowBlocked && this.scene.isSolidAt(tileX - 1, tileY) !== this.scene.isSolidAt(tileX + 1, tileY);
+
+      const shouldSnap = hasLadderHere || hasElevatorHere || hasNarrowPassage ||
+                         this.isClimbing || this.isOnElevator ||
+                         steppingOffLadder || steppingOffElevator || inVerticalShaft;
+
+      if (shouldSnap) {
+        const correction = -Math.sign(offsetY) * Math.min(Math.abs(offsetY), snapStrength * dt);
+        this.sprite.y += correction;
       }
     }
   }

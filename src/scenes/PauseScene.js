@@ -98,6 +98,7 @@ export class PauseScene extends Phaser.Scene {
       gameData: this.registry.get('gameData'),
       modifiedTiles: Array.from(gameScene.modifiedTiles.entries()),
       placedItems: gameScene.placedItems,
+      exploredTiles: Array.from(gameScene.exploredTiles || []),
       roverState: {
         battery: gameScene.rover.battery,
         hull: gameScene.rover.hull,
@@ -121,6 +122,7 @@ export class PauseScene extends Phaser.Scene {
       hudZoom: this.registry.get('hudZoom'),
       devMode: this.registry.get('devMode'),
       disableDarkness: this.registry.get('disableDarkness'),
+      tileSnap: this.registry.get('tileSnap'),
     };
     SaveSystem.saveSettings(settings);
   }
@@ -303,6 +305,26 @@ export class PauseScene extends Phaser.Scene {
       const newValue = !this.registry.get('debugMode');
       this.registry.set('debugMode', newValue);
       debugText.setText(`DEBUG: ${newValue ? 'ON' : 'OFF'}`);
+      this.saveSettings();
+    });
+
+    currentY += 40;
+
+    // Tile Snap toggle (movement guidance)
+    const tileSnapEnabled = this.registry.get('tileSnap') !== false;
+    const tileSnapBg = this.add.rectangle(cx, currentY, 240, 28, 0x444444)
+      .setInteractive({ useHandCursor: true });
+    uiElements.push(tileSnapBg);
+    const tileSnapText = this.add.bitmapText(cx, currentY, 'pixel', `TILE SNAP: ${tileSnapEnabled ? 'ON' : 'OFF'}`, 10)
+      .setOrigin(0.5)
+      .setTint(0xffffff)
+      .setDepth(1);
+    uiElements.push(tileSnapText);
+
+    tileSnapBg.on('pointerdown', () => {
+      const newValue = !(this.registry.get('tileSnap') !== false);
+      this.registry.set('tileSnap', newValue);
+      tileSnapText.setText(`TILE SNAP: ${newValue ? 'ON' : 'OFF'}`);
       this.saveSettings();
     });
 
